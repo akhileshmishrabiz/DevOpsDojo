@@ -26,6 +26,19 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# flask migration
+# Python/Flask
+__pycache__/
+*.py[cod]
+[previous rules...]
+
+# Keep migrations folder but ignore cache
+!migrations/
+migrations/__pycache__/
+migrations/**/__pycache__/
+migrations/*.pyc
+
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
