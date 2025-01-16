@@ -1,5 +1,6 @@
+# Devops learning platform with React and Flask
 
-# Build and start the containers(given docker and docker-compose are instaled)
+## Build and start the containers(given docker and docker-compose are instaled)
 
 docker-compose up --build
 
