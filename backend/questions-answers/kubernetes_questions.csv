@@ -37,6 +37,26 @@ kubernetes,What is a Toleration?,Allows pod to schedule on tainted nodes,Network
 kubernetes,How to get deployment status?,kubectl rollout status,kubectl status,kubectl check,kubectl verify,0
 kubernetes,What is a ServiceAccount?,Pod identity in cluster,User account,Network profile,Storage credential,0
 kubernetes,Which port is kubelet default?,10250,8080,443,6443,0
+kubernetes,When using the NodeResourcesFit plugin's default strategy which node would a new pod prefer?,Node with least resource usage,Node with most resource usage,Node with existing pods,Any available node,0
+kubernetes,What happens when a container encounters an OOM error?,Container restarts while Pod remains intact,Entire Pod gets recreated,Both container and Pod get deleted,System kills the node process,0
+kubernetes,How can ConfigMap updates be applied dynamically?,By mounting as files without subPath,By using environment variables,By recreating the Pod,By restarting the container,0
+kubernetes,What is the default sync frequency for ConfigMap updates?,1 minute,5 minutes,10 minutes,30 seconds,0
+kubernetes,Which factor does NOT typically cause Pod eviction?,Regular system updates,Resource shortages,Network disruptions,Node failures,0
+kubernetes,What technology does ClusterIP-based Services use for load balancing?,Linux kernel Netfilter,HAProxy,NGINX,Apache,0
+kubernetes,What is the recommended way to prevent log loss in Kubernetes?,Writing to persistent storage,Using stdout only,Using stderr only,Using node storage,0
+kubernetes,What does a livenessProbe primarily check?,If the application is alive,If the application works correctly,If the network is reliable,If the pod is stable,0
+kubernetes,Which autoscaling method requires Pod recreation?,Vertical Pod Autoscaling,Horizontal Pod Autoscaling,External scaling,Manual scaling,0
+kubernetes,When using kubectl exec which namespaces remain separate?,PID and Mount,Network and IPC,UTS and Network,IPC and Mount,0
+kubernetes,What is the best approach for troubleshooting a crash-looping container?,Use kubectl debug with temporary container,Try kubectl exec repeatedly,Restart the node,Delete and recreate the Pod,0
+kubernetes,Which namespace do containers within a Pod share?,Network,PID,Mount,None of the above,0
+kubernetes,What is the default RestartPolicy for Pods?,Always,Never,OnFailure,None,0
+kubernetes,What determines load distribution in ClusterIP Services?,Connection tracking mechanism,Round-robin algorithm,Random selection,Least connections,0
+kubernetes,How are logs typically collected from stdout/stderr?,Using log agents as DaemonSet,Direct node access,Manual copying,Container exec,0
+kubernetes,What can cause uneven load distribution in ClusterIP Services?,Long-lived TCP connections,Network latency,Pod resources,Service type,0
+kubernetes,Which is NOT a scoring strategy of NodeResourcesFit plugin?,RandomAllocation,LeastAllocated,MostAllocated,RequestedToCapacityRatio,0
+kubernetes,What type of metrics can HPA use for scaling?,All of the above,CPU usage,Request rate,Custom metrics,0
+kubernetes,How are environment variables updated in Pods?,They cannot be updated dynamically,Through ConfigMap updates,Using kubectl set env,Via API server,0
+kubernetes,What is required for examining a crash-looping container?,Node and container logs,Direct container access,Pod shell access,Live debugging session,0
 kubernetes,What is a PriorityClass?,Pod scheduling priority,Network class,Storage tier,Service level,0
 kubernetes,How to get resource quotas?,kubectl get quota,kubectl show quota,kubectl list quota,kubectl quota get,0
 kubernetes,What is a VolumeSnapshot?,Point-in-time copy of volume,Network capture,Memory snapshot,Config backup,0
