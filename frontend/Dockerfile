@@ -7,8 +7,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies and the missing tailwind forms plugin
 RUN npm install
+RUN npm install @tailwindcss/forms
 
 # Copy source code
 COPY . .
