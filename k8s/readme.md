@@ -7,6 +7,35 @@
 - Helm installed
 - Docker installed
 
+
+Install kubectl 
+
+curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.29.0/2024-01-04/bin/linux/amd64/kubectl
+
+```bash
+curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.30.2/2024-07-12/bin/linux/amd64/kubectl
+sha256sum -c kubectl.sha256
+openssl sha1 -sha256 kubectl
+chmod +x ./kubectl
+mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$HOME/bin:$PATH
+echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
+```
+
+Install eksctl 
+```bash
+ARCH=amd64
+PLATFORM=$(uname -s)_$ARCH
+
+curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+
+# (Optional) Verify checksum
+curl -sL "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_checksums.txt" | grep $PLATFORM | sha256sum --check
+
+tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
+
+sudo mv /tmp/eksctl /usr/local/bin
+
+```
 ## Step 1: Clone the Repository and Organize Kubernetes Manifests
 
 ```bash
@@ -38,7 +67,9 @@ Copy all the YAML files for Kubernetes (namespace.yaml, secrets.yaml, backend.ya
 aws eks list-clusters
 
 # Replace my-cluster with your cluster name from the list-clusters output
-aws eks update-kubeconfig --name my-cluster --region us-west-2
+export cluster_name=bootcamp-devopsdozo
+
+aws eks update-kubeconfig --name $cluster_name --region ap-south-1
 
 kubectl config get-contexts
 
@@ -74,18 +105,18 @@ Make sure to:
 
 ```bash
 # Log in to Amazon ECR
-aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin 163962798700.dkr.ecr.eu-west-1.amazonaws.com
+aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 879381241087.dkr.ecr.ap-south-1.amazonaws.com
 
 # Create ECR repositories
-aws ecr create-repository --repository-name devops-learning/frontend
-aws ecr create-repository --repository-name devops-learning/backend
+aws ecr create-repository --repository-name devopsdozo/frontend
+aws ecr create-repository --repository-name devopsdozo/backend
 
 # Build and push images
-docker build -t 163962798700.dkr.ecr.eu-west-1.amazonaws.com/devops-learning/frontend:latest --platform=linux/amd64 ./frontend
-docker build -t 163962798700.dkr.ecr.eu-west-1.amazonaws.com/devops-learning/backend:latest --platform=linux/amd64  ./backend
+docker build -t 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/frontend:latest --platform=linux/amd64 ./frontend
+docker build -t 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/backend:latest --platform=linux/amd64  ./backend
 
-docker push 163962798700.dkr.ecr.eu-west-1.amazonaws.com/devops-learning/frontend:latest
-docker push 163962798700.dkr.ecr.eu-west-1.amazonaws.com/devops-learning/backend:latest
+docker push 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/frontend:latest
+docker push 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/backend:latest
 ```
 
 Replace `163962798700` with your AWS account ID.
@@ -97,7 +128,6 @@ The AWS Application Load Balancer (ALB) Ingress Controller is required for the i
 ```bash
 
 # resource: https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html
-export cluster_name=fabulous-folk-unicorn
 oidc_id=$(aws eks describe-cluster --name $cluster_name --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 5)
 echo $oidc_id
 # Check if IAM OIDC provider with your cluster’s issuer ID 
