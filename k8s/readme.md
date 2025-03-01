@@ -62,18 +62,20 @@ Copy all the YAML files for Kubernetes (namespace.yaml, secrets.yaml, backend.ya
  - AmazonEKSComputePolicy 
  - AmazonEKSClusterPolicy
 
+_ create cluster ->
 
+eksctl create cluster --name devopsdozo --region ap-south-1
 
 aws eks list-clusters
 
 # Replace my-cluster with your cluster name from the list-clusters output
-export cluster_name=bootcamp-devopsdozo
+export cluster_name=devopsdozo
 
 aws eks update-kubeconfig --name $cluster_name --region ap-south-1
 
 kubectl config get-contexts
 
-kubectl config current-contexts
+kubectl config current-context
 
 kubectl config use-context  demo-cluster
 
@@ -156,7 +158,7 @@ eksctl create iamserviceaccount \
   --namespace=kube-system \
   --name=aws-load-balancer-controller \
   --role-name AmazonEKSLoadBalancerControllerRole \
-  --attach-policy-arn=arn:aws:iam::163962798700:policy/AWSLoadBalancerControllerIAMPolicy \
+  --attach-policy-arn=arn:aws:iam::879381241087:policy/AWSLoadBalancerControllerIAMPolicy \
   --approve
 
 # Install the AWS Load Balancer Controller
@@ -172,8 +174,8 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   --set clusterName=$cluster_name \
   --set serviceAccount.create=false \
   --set serviceAccount.name=aws-load-balancer-controller \
-  --set vpcId=vpc-22635844 \
-  --set region=eu-west-1
+  --set vpcId=vpc-06a34931ca660b90b \
+  --set region=ap-south-1
 
 ```
 
@@ -201,29 +203,29 @@ kubectl apply -f k8s/horizontal-pod-autoscaler.yaml
 kubectl apply -f k8s/ingress.yaml
 
 # Verify deployments
-kubectl get pods -n devops-learning
-kubectl get svc -n devops-learning
-kubectl get ingress -n devops-learning
+kubectl get pods -n devopsdozo
+kubectl get svc -n devopsdozo
+kubectl get ingress -n devopsdozo
 
-kubectl logs -n devops-learning -l app=backend
+kubectl logs -n devopsdozo -l app=backend
 
-kubectl logs -n devops-learning -l app=frontend
+kubectl logs -n devopsdozo -l app=frontend
 
 # access the app locally
 # port forward backend
-kubectl port-forward -n devops-learning svc/backend 8000:8000
+kubectl port-forward -n devopsdozo svc/backend 8000:8000
 
 curl http://localhost:8000/api/topics
 
 ## to check the db connection for troubleshooting
-kubectl run debug-pod --rm -it --image=postgres -- bash
-PGPASSWORD=postgrespassword psql -h devops-learning-db.devops-learning.svc.cluster.local -U postgres -d devops_learning
+kubectl run debug-pod  -n devopsdozo --rm -it --image=postgres -- bash
+PGPASSWORD=postgrespassword psql -h devopsdozo-db.devopsdozo.svc.cluster.local -U postgres -d devopsdozo
 # run query
 SELECT COUNT(*) FROM topics;
 
 
 # port forward the frontend 
-kubectl port-forward svc/frontend 8080:80 -n devops-learning
+kubectl port-forward svc/frontend 8080:80 -n devopsdozo
 
 ```
 
@@ -232,16 +234,16 @@ kubectl port-forward svc/frontend 8080:80 -n devops-learning
 After deployment, find the ALB URL:
 
 ```bash
-kubectl get ingress -n devops-learning
+kubectl get ingress -n devopsdozo
 
 # After ingress creation
 kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
 
 # NOte: make sure public subnet are available. and they have Key=kubernetes.io/role/elb,Value=1 tag
-aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-22635844" --query "Subnets[*].{SubnetId:SubnetId,AvailabilityZone:AvailabilityZone,PublicIp:MapPublicIpOnLaunch,Tags:Tags}" --output table
+aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-06a34931ca660b90b" --query "Subnets[*].{SubnetId:SubnetId,AvailabilityZone:AvailabilityZone,PublicIp:MapPublicIpOnLaunch,Tags:Tags}" --output table
 
 # For public subnets (used by internet-facing load balancers)
-aws ec2 create-tags --resources subnet-id1 subnet-id2 --tags Key=kubernetes.io/role/elb,Value=1
+aws ec2 create-tags --resources subnet-0d0a4f444ffb997ad subnet-046bd3dcc8c11e02d subnet-0d6b5043f6ef0c1c2 subnet-017990e7212e04fb8  subnet-07ad8471f03a271b9 subnet-0da3069e583c3973e  --tags Key=kubernetes.io/role/elb,Value=1
 
 # For private subnets (used by internal load balancers) - if needed later
 # aws ec2 create-tags --resources subnet-id3 subnet-id4 --tags Key=kubernetes.io/role/internal-elb,Value=1
@@ -250,7 +252,7 @@ aws ec2 create-tags --resources subnet-id1 subnet-id2 --tags Key=kubernetes.io/r
 aws ec2 describe-subnets --subnet-ids subnet-id1 subnet-id2 --query "Subnets[*].{SubnetId:SubnetId,Tags:Tags}" --output table
 
 # delete and recreate ingress
-kubectl delete ingress devops-learning-ingress -n devops-learning
+kubectl delete ingress devopsdozo-ingress -n devopsdozo
 kubectl apply -f k8s/ingress.yaml
 
 # check the status again

@@ -1,12 +1,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: devops-learning-db
-  namespace: devops-learning
+  name: devopsdozo-db
+  namespace: devopsdozo
   labels:
     service: database
 spec:
   type: ExternalName
-  externalName: devops-learning-db.cveph9nmftjh.eu-west-1.rds.amazonaws.com
+  externalName:  bootcamp-devopsdozo1.cvik8accw2tk.ap-south-1.rds.amazonaws.com
   ports:
   - port: 5432
+
+
+  # devopsdozo-db.devopsdozo.svc.cluster.local

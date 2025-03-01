@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-backend-job
+  namespace: devopsdozo
+spec:
+  backoffLimit: 3  # Number of retries before job is considered failed
+  activeDeadlineSeconds: 600  # Job timeout in seconds (10 minutes)
+  ttlSecondsAfterFinished: 86400  # Auto-delete job 1 day after completion
+  template:
+    metadata:
+      labels:
+        app: sample-job
+    spec:
+      restartPolicy: OnFailure  # or 'Never'
+      containers:
+      - name: seed
+        image: 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/backend:seed
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DATABASE_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: SECRET_KEY
+        - name: FLASK_DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: FLASK_DEBUG
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+      terminationGracePeriodSeconds: 30
