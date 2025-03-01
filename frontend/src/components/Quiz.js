@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import API_URL from '../config/api';
 
 function Quiz() {
   const { topic } = useParams();
@@ -13,7 +14,7 @@ function Quiz() {
   const fetchQuiz = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8000/api/quiz/${topic}`);
+      const response = await fetch(`${API_URL}/api/quiz/${topic}`);
       if (!response.ok) {
         throw new Error('Failed to fetch quiz');
       }
@@ -58,7 +59,7 @@ function Quiz() {
         answers
       });
 
-      const response = await fetch('http://localhost:8000/api/quiz/submit', {
+      const response = await fetch(`${API_URL}/api/quiz/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

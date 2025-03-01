@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: devops-learning
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      nodeSelector:
+        kubernetes.io/arch: amd64 
+      # tolerations:
+      # - key: "CriticalAddonsOnly"
+      #   operator: "Exists"
+      #   effect: "NoSchedule"
+      initContainers:
+      - name: wait-for-db
+        image: busybox
+        command: ['sh', '-c', 'until nslookup devops-learning-db.devops-learning.svc.cluster.local; do echo waiting for database; sleep 2; done;']
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DATABASE_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: SECRET_KEY
+        - name: FLASK_DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: FLASK_DEBUG
+      containers:
+      - name: backend
+        image: 163962798700.dkr.ecr.eu-west-1.amazonaws.com/devops-learning/backend:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DATABASE_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: SECRET_KEY
+        - name: FLASK_DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: FLASK_DEBUG
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: devops-learning
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP

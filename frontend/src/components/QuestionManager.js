@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Papa from 'papaparse';
+import API_URL from '../config/api';
 
 function QuestionManager() {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ function QuestionManager() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/quiz/questions', {
+      const response = await fetch(`${API_URL}/api/quiz/questions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +108,7 @@ function QuestionManager() {
           }
 
           try {
-            const response = await fetch('http://localhost:8000/api/quiz/questions/bulk', {
+            const response = await fetch(`${API_URL}/api/quiz/questions/bulk`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

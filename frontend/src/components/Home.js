@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import API_URL from '../config/api';
 
 function Home() {
   const [topics, setTopics] = useState([]);
@@ -10,7 +11,7 @@ function Home() {
     const fetchTopics = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:8000/api/topics', {
+        const response = await fetch(`${API_URL}/api/topics`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -49,7 +50,7 @@ function Home() {
       <div className="container mx-auto px-4 py-8">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p>Error loading topics: {error}</p>
-          <p>Please make sure the backend server is running on port 5000</p>
+          <p>Please make sure the backend server is running and accessible</p>
         </div>
       </div>
     );
