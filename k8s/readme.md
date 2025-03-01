@@ -256,7 +256,7 @@ kubectl delete ingress devopsdozo-ingress -n devopsdozo
 kubectl apply -f k8s/ingress.yaml
 
 # check the status again
-kubectl describe ingress devops-learning-ingress -n devops-learning
+kubectl describe ingress devopsdozo-ingress -n devopsdozo
 
 
 # Monitor the AWS Load Balancer Controller logs to see if it's processing your Ingress:
@@ -299,20 +299,20 @@ Replace `<your-hosted-zone-id>` and `<your-alb-address>` with your actual values
 
 ### Check Pod Logs
 ```bash
-kubectl logs -f deploy/backend -n devops-learning
-kubectl logs -f deploy/frontend -n devops-learning
+kubectl logs -f deploy/backend -n devopsdozo
+kubectl logs -f deploy/frontend -n devopsdozo
 ```
 
 ### Check Pod Status
 ```bash
-kubectl describe pod -l app=backend -n devops-learning
-kubectl describe pod -l app=frontend -n devops-learning
+kubectl describe pod -l app=backend -n devopsdozo
+kubectl describe pod -l app=frontend -n devopsdozo
 ```
 
 ### Restart Deployments
 ```bash
-kubectl rollout restart deployment backend -n devops-learning
-kubectl rollout restart deployment frontend -n devops-learning
+kubectl rollout restart deployment backend -n devopsdozo
+kubectl rollout restart deployment frontend -n devopsdozo
 ```
 
 

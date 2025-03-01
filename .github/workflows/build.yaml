@@ -1,0 +1,67 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Enable manual triggering
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY_FRONTEND: devopsdozo/frontend
+  ECR_REPOSITORY_BACKEND: devopsdozo/backend
+  # IMAGE_TAG: ${{ github.sha }}
+  IMAGE_TAG: latest
+
+jobs:
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        
+      - name: Build, tag, and push frontend image to Amazon ECR
+        working-directory: ./frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG \
+                     -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:latest \
+                     --platform=linux/amd64 .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:latest
+          echo "Frontend image pushed to ECR: $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG"
+          
+      - name: Build, tag, and push backend image to Amazon ECR
+        working-directory: ./backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG \
+                     -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest \
+                     --platform=linux/amd64 .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest
+          echo "Backend image pushed to ECR: $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG"
+      
+      - name: Summary
+        run: |
+          echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Frontend: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_FRONTEND }}:${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Backend: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
