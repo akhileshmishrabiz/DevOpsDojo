@@ -4,8 +4,7 @@
 set -e
 
 # Export Flask app
-export FLASK_APP=run.py
-export HOST=devops-learning-db.devops-learning.svc.cluster.local
+export FLASK_APP=${FLASK_APP:-run.py}
 
 echo "Running database migrations..."
 
@@ -28,7 +27,7 @@ flask db upgrade
 
 echo "Checking if seed data is needed..."
 # Only run seed data if topics table is empty
-PGPASSWORD=postgrespassword psql -h $HOST -U postgres -d devops_learning -t -c "SELECT COUNT(*) FROM topics" | grep -q "0" && {
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM topics" | grep -q "0" && {
     echo "Running seed data..."
     python seed_data.py
 } || {

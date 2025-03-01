@@ -26,22 +26,6 @@ spec:
       - name: wait-for-db
         image: busybox
         command: ['sh', '-c', 'until nslookup devopsdozo-db.devopsdozo.svc.cluster.local; do echo waiting for database; sleep 2; done;']
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: DATABASE_URL
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: db-secrets
-              key: SECRET_KEY
-        - name: FLASK_DEBUG
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: FLASK_DEBUG
       containers:
       - name: backend
         image: 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/backend:latest
@@ -50,8 +34,8 @@ spec:
         env:
         - name: DATABASE_URL
           valueFrom:
-            configMapKeyRef:
-              name: app-config
+            secretKeyRef:
+              name: db-secrets
               key: DATABASE_URL
         - name: SECRET_KEY
           valueFrom:

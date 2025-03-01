@@ -34,5 +34,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 # Command to run the application
-# CMD ["gunicorn", "--bind", "0.0.0.0:8000", "run:app"]
-CMD [ "python", "run.py", "&&", "python" ,"seed_data.py" ]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "run:app"]
