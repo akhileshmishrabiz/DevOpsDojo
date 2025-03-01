@@ -25,11 +25,6 @@ COPY . .
 # Ensure migrate.sh has Unix line endings
 RUN chmod +x migrate.sh
 
-# Set environment variables
-ENV FLASK_APP=run.py
-ENV FLASK_DEBUG=1
-ENV PYTHONUNBUFFERED=1
-
 # Expose port
 EXPOSE 8000
 

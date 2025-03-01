@@ -12,6 +12,17 @@ spec:
         image: 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/backend:latest
         command: ["/bin/bash", "-c", "./migrate.sh"]
         env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: DATABASE_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: SECRET_KEY
+
         - name: FLASK_APP
           value: "run.py"
         - name: DB_HOST
@@ -44,11 +55,6 @@ spec:
             secretKeyRef:
               name: db-secrets
               key: DB_PASSWORD
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: db-secrets
-              key: SECRET_KEY
         resources:
           requests:
             memory: "256Mi"

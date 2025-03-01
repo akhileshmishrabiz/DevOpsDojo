@@ -40,29 +40,12 @@ sudo mv /tmp/eksctl /usr/local/bin
 
 ```bash
 # Clone your repository (assuming you have one)
-git clone https://github.com/your-org/devops-learning-platform.git
-cd devops-learning-platform
+git clone https://github.com/DevOpsDojo.git
+cd DevOpsDojo
 
-# Create a k8s directory to store Kubernetes manifests
-mkdir -p k8s
 ```
 
-Copy all the YAML files for Kubernetes (namespace.yaml, secrets.yaml, backend.yaml, etc.) into this directory.
-
-## Step 2: Create the EKS Cluster -> EKS AUTOmode from UI
-
-# First create a manual cluster with automode 
--> choose the recomended settings and create the cluster. It will take some time to come up.
--> Node role had permisions to pull ecr images and create nodes (AmazonEKSWorkerNodeMinimalPolicy, AmazonEC2ContainerRegistryPullOnly)
-
--> Cluster role had permissions like
- - AmazonEKSBlockStoragePolicy - to provision the ebs storage for clutser
- - AmazonEKSNetworkingPolicy - to manage the netrowking
- - AmazonEKSLoadBalancingPolicy - to manage the lb
- - AmazonEKSComputePolicy 
- - AmazonEKSClusterPolicy
-
-_ create cluster ->
+# create cluster ->
 
 eksctl create cluster --name devopsdozo --region ap-south-1
 
@@ -83,21 +66,13 @@ kubectl config use-context  demo-cluster
 
 ## Step 3: Create the RDS PostgreSQL Database
 
-```bash
-aws rds create-db-instance \
-  --db-instance-identifier devops-learning-db \
-  --db-instance-class db.t3.small \
-  --engine postgres \
-  --allocated-storage 20 \
-  --master-username postgres \
-  --master-user-password <strong-password> \
-  --vpc-security-group-ids <security-group-id> \
-  --db-subnet-group-name <your-subnet-group> \
-  --backup-retention-period 7 \
-  --multi-az
-```
+Use UI or run cli 
 
-Note: Replace `<strong-password>`, `<security-group-id>`, and `<your-subnet-group>` with your actual values.
+with details as below 
+user: postgres
+password: postgrespassword
+db name: devopsdozo
+once created, not down the endpoint url. we will use this while creating database service
 
 Make sure to:
 1. Create a security group that allows inbound traffic on port 5432 from your EKS cluster's VPC
@@ -196,11 +171,16 @@ Replace `<strong-password>` and `<your-db-endpoint>` with your actual values.
 # Apply Kubernetes manifests
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/secrets.yaml
+# Update the database-service.yaml with database endpoint 
 kubectl apply -f k8s/database-service.yaml
+
+# this job is only run when there is a change in schema or the first time while deployig the app
+kubectl apply -f k8s/migration_job.yaml  # it run once 
+
+# start the backnd and frontend services
 kubectl apply -f k8s/backend.yaml
 kubectl apply -f k8s/frontend.yaml
 kubectl apply -f k8s/horizontal-pod-autoscaler.yaml
-kubectl apply -f k8s/ingress.yaml
 
 # Verify deployments
 kubectl get pods -n devopsdozo
@@ -234,6 +214,9 @@ kubectl port-forward svc/frontend 8080:80 -n devopsdozo
 After deployment, find the ALB URL:
 
 ```bash
+
+kubectl apply -f k8s/ingress.yaml
+
 kubectl get ingress -n devopsdozo
 
 # After ingress creation
@@ -243,7 +226,7 @@ kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controll
 aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-06a34931ca660b90b" --query "Subnets[*].{SubnetId:SubnetId,AvailabilityZone:AvailabilityZone,PublicIp:MapPublicIpOnLaunch,Tags:Tags}" --output table
 
 # For public subnets (used by internet-facing load balancers)
-aws ec2 create-tags --resources subnet-0d0a4f444ffb997ad subnet-046bd3dcc8c11e02d subnet-0d6b5043f6ef0c1c2 subnet-017990e7212e04fb8  subnet-07ad8471f03a271b9 subnet-0da3069e583c3973e  --tags Key=kubernetes.io/role/elb,Value=1
+aws ec2 create-tags --resources subnet-0d0a4f444ffb997ad subnet-046bd3dcc8c11e02d subnet-0d6b5043f6ef0c1c2 subnet-017990e7212e04fb8   --tags Key=kubernetes.io/role/elb,Value=1
 
 # For private subnets (used by internal load balancers) - if needed later
 # aws ec2 create-tags --resources subnet-id3 subnet-id4 --tags Key=kubernetes.io/role/internal-elb,Value=1
