@@ -384,3 +384,374 @@ kubectl port-forward -n monitoring svc/prometheus-server 9090:80
 kubectl port-forward -n monitoring svc/grafana 3000:80
 
 ```
+
+
+### Using aws oidc for github auth 
+
+I'll help you set up OIDC for AWS authentication with GitHub Actions. This is a more secure approach than using long-term AWS credentials.
+
+Here's a step-by-step guide to configure OIDC between AWS and GitHub Actions:
+
+## 1. Create an OIDC Identity Provider in AWS
+# GitHub Actions OIDC with AWS for Kubernetes Deployment
+
+I'll provide a step-by-step guide to set up GitHub Actions with AWS OIDC authentication for deploying your frontend and backend applications to your EKS cluster.
+
+## Step 1: Set up AWS OIDC Identity Provider for GitHub Actions
+
+```bash
+# 1. Create an OIDC Identity Provider in AWS
+export OIDC_PROVIDER="token.actions.githubusercontent.com"
+export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+export GITHUB_ORG="your-github-org-or-username"
+export GITHUB_REPO="your-github-repo-name"
+
+# Create the OIDC provider
+aws iam create-open-id-connect-provider \
+  --url https://$OIDC_PROVIDER \
+  --client-id-list sts.amazonaws.com \
+  --thumbprint-list "6938fd4d98bab03faadb97b34396831e3780aea1"
+```
+
+## Step 2: Create IAM Role for GitHub Actions
+
+```bash
+# Create a trust policy file
+cat > trust-policy.json << EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::$AWS_ACCOUNT_ID:oidc-provider/$OIDC_PROVIDER"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringLike": {
+          "$OIDC_PROVIDER:sub": "repo:$GITHUB_ORG/$GITHUB_REPO:*"
+        }
+      }
+    }
+  ]
+}
+EOF
+
+# Create the IAM role
+aws iam create-role \
+  --role-name GitHubActionsEKSDeployRole \
+  --assume-role-policy-document file://trust-policy.json
+```
+
+## Step 3: Create and Attach the IAM Policy
+
+```bash
+# Create a policy file for EKS and ECR access
+cat > eks-policy.json << EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeCluster",
+        "eks:ListClusters"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+
+# Create the policy
+aws iam create-policy \
+  --policy-name GitHubActionsEKSPolicy \
+  --policy-document file://eks-policy.json
+
+# Attach the policy to the role
+aws iam attach-role-policy \
+  --role-name GitHubActionsEKSDeployRole \
+  --policy-arn arn:aws:iam::$AWS_ACCOUNT_ID:policy/GitHubActionsEKSPolicy
+```
+
+## Step 4: Configure Kubernetes RBAC for GitHub Actions
+
+```bash
+# Create a ClusterRole and ClusterRoleBinding for GitHub Actions
+cat > rbac.yaml << EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: github-actions
+  namespace: devopsdozo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: github-actions-role
+  namespace: devopsdozo
+rules:
+- apiGroups: ["", "apps", "batch", "extensions"]
+  resources: ["deployments", "services", "pods", "jobs", "configmaps", "secrets", "ingresses"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: github-actions-role-binding
+  namespace: devopsdozo
+subjects:
+- kind: ServiceAccount
+  name: github-actions
+  namespace: devopsdozo
+roleRef:
+  kind: Role
+  name: github-actions-role
+  apiGroup: rbac.authorization.k8s.io
+EOF
+
+# Apply the RBAC configuration
+kubectl apply -f rbac.yaml
+```
+
+#######################
+
+# ArgoCD
+
+# Setting up ArgoCD for Kubernetes Deployment
+
+I'll guide you through setting up ArgoCD and integrating it with GitHub Actions for your frontend and backend applications.
+
+## Step 1: Install ArgoCD on your EKS Cluster
+
+```bash
+# Create ArgoCD namespace
+kubectl create namespace argocd
+
+# Apply the ArgoCD installation manifest
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# Wait for ArgoCD pods to start
+kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s
+
+# Expose the ArgoCD server via LoadBalancer (for production, consider using Ingress)
+kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+
+# Get the ArgoCD server URL
+export ARGOCD_URL=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+echo "ArgoCD URL: https://$ARGOCD_URL"
+
+# Get the initial admin password
+export ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+echo "ArgoCD Initial Admin Password: $ARGOCD_PASSWORD"
+```
+
+## Step 2: Install ArgoCD CLI (Optional but Recommended)
+
+```bash
+# For Linux
+curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+rm argocd-linux-amd64
+
+# For macOS
+brew install argocd
+
+# Login to ArgoCD
+argocd login $ARGOCD_URL --username admin --password $ARGOCD_PASSWORD --insecure
+```
+
+## Step 3: Create a Git Repository for Kubernetes Manifests
+
+First, create a Git repository to store your Kubernetes manifests. This will be the source of truth for ArgoCD.
+
+```bash
+# Example structure
+mkdir -p devopsdozo-k8s/{base,overlays/{dev,staging,prod}}
+
+# Copy your existing Kubernetes manifests to the base directory
+cp -r k8s/* devopsdozo-k8s/base/
+
+# Create kustomization.yaml files
+touch devopsdozo-k8s/base/kustomization.yaml
+touch devopsdozo-k8s/overlays/dev/kustomization.yaml
+touch devopsdozo-k8s/overlays/staging/kustomization.yaml
+touch devopsdozo-k8s/overlays/prod/kustomization.yaml
+```
+
+## Step 4: Set Up Kustomize for Your Applications
+
+### Base Kustomization
+
+Edit `devopsdozo-k8s/base/kustomization.yaml`:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- namespace.yaml
+- secrets.yaml
+- database-service.yaml
+- backend.yaml
+- frontend.yaml
+- ingress.yaml
+```
+
+### Environment-Specific Kustomization
+
+Edit `devopsdozo-k8s/overlays/dev/kustomization.yaml`:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../base
+
+namespace: devopsdozo
+
+images:
+- name: 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/backend
+  newTag: latest
+- name: 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/frontend
+  newTag: latest
+
+patchesStrategicMerge:
+- deployment-patches.yaml
+```
+
+Create a deployment patches file at `devopsdozo-k8s/overlays/dev/deployment-patches.yaml`:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 2
+```
+
+## Step 5: Create ArgoCD Applications
+
+Now, let's create ArgoCD applications for your backend and frontend:
+
+```bash
+# Create ArgoCD application for the entire stack
+kubectl apply -f - <<EOF
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: devopsdozo-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-username/devopsdozo-k8s.git  # Replace with your Git repo URL
+    targetRevision: HEAD
+    path: overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devopsdozo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+EOF
+```
+
+## Step 6: Set Up GitHub Actions for Image Updates
+
+Create a GitHub Actions workflow to update image tags in your Kubernetes manifests:
+
+## Step 7: Configure GitHub Secrets
+
+In your application repository, add these secrets:
+
+1. `GITOPS_PAT`: A GitHub Personal Access Token with `repo` permissions for updating your GitOps repository
+
+## Step 8: Create an ArgoCD Webhook for Automatic Sync (Optional)
+
+To make ArgoCD automatically detect changes in your GitOps repository:
+
+```bash
+# In the ArgoCD UI, go to your application settings, then select "EDIT" 
+# Under "SYNC POLICY", check "AUTOMATED"
+# Additionally, you can set "SELF HEAL" and "PRUNE" options
+
+# Alternatively, update via CLI:
+argocd app set devopsdozo-app --sync-policy automated --auto-prune --self-heal
+```
+
+## Step 9: Test the Workflow
+
+Make a change to your application code, commit and push:
+
+```bash
+echo "// Test change" >> frontend/src/App.js
+git add frontend/src/App.js
+git commit -m "Test CI/CD pipeline with ArgoCD"
+git push
+```
+
+## Full ArgoCD Workflow Explanation
+
+1. **Developer Workflow**:
+   - Developer pushes code changes to the application repository
+   - GitHub Actions builds new Docker images and updates the image tags in the GitOps repository
+   - ArgoCD detects changes in the GitOps repository and syncs the application state
+
+2. **GitOps Benefits**:
+   - All infrastructure changes are tracked in Git
+   - Easy rollback to previous versions
+   - Clear history of changes
+   - Separation of application and infrastructure concerns
+
+3. **ArgoCD Features**:
+   - Automatically detects drift between desired state (Git) and actual state (cluster)
+   - Automatically corrects drift with self-healing
+   - Provides visualization of application deployments
+   - Supports multi-cluster deployments
+
+## Troubleshooting Tips
+
+1. **ArgoCD Not Syncing**:
+   - Check the ArgoCD application status: `argocd app get devopsdozo-app`
+   - Verify your Git repository is accessible to ArgoCD
+   - Check for errors in the ArgoCD UI or logs: `kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server`
+
+2. **GitHub Actions Failing**:
+   - Check the workflow logs in GitHub
+   - Ensure your AWS role has sufficient permissions
+   - Verify the Personal Access Token has correct permissions
+
+3. **Kustomize Issues**:
+   - Validate your kustomization files: `kustomize build overlays/dev`
+   - Ensure image references match exactly what's in your deployment files
+
+This setup gives you a complete GitOps workflow for continuous deployment of your applications using ArgoCD and GitHub Actions. The key benefit is that your Kubernetes cluster's state is always in sync with your Git repository, providing reliability, traceability, and easy rollbacks.
+
+
