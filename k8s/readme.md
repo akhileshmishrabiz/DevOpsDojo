@@ -299,22 +299,6 @@ kubectl rollout restart deployment frontend -n devopsdozo
 ```
 
 
-
-# Normal cluster
-
-```bash
-eksctl create cluster \
-  --name devops-learning \
-  --region eu-west-1 \
-  --version 1.27 \
-  --nodegroup-name standard-workers \
-  --node-type t3.medium \
-  --nodes 3 \
-  --nodes-min 2 \
-  --nodes-max 5 \
-  --managed
-  
-  ```
 ########### Monitoring  #######
 
 ##Set Up Monitoring and Logging
@@ -346,7 +330,7 @@ eksctl create iamserviceaccount \
   --name ebs-csi-controller-sa \
   --namespace kube-system \
   --cluster $cluster_name \
-  --attach-policy-arn arn:aws:iam::163962798700:policy/AmazonEKS_EBS_CSI_Driver_Policy \
+  --attach-policy-arn arn:aws:iam::879381241087:policy/AmazonEKS_EBS_CSI_Driver_Policy \
   --approve \
   --role-name AmazonEKS_EBS_CSI_Driver_Role
 
@@ -355,10 +339,12 @@ eksctl create iamserviceaccount \
 eksctl create addon \
   --name aws-ebs-csi-driver \
   --cluster $cluster_name \
-  --service-account-role-arn arn:aws:iam::163962798700:role/AmazonEKS_EBS_CSI_Driver_Role \
+  --service-account-role-arn arn:aws:iam::879381241087:role/AmazonEKS_EBS_CSI_Driver_Role \
   --force
 
 # verify installation
+# check existing add ons
+eksctl get addon --cluster $cluster_name
 kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver
 ######### ### #############################################################
 
@@ -370,7 +356,9 @@ helm upgrade --install aws-ebs-csi-driver \
   --namespace kube-system \
   aws-ebs-csi-driver/aws-ebs-csi-driver
 
-# verify
+# verify installation
+# check existing add ons
+eksctl get addon --cluster $cluster_name
 kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver
 ######### ### #############################################################
 
