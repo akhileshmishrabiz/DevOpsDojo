@@ -1,11 +1,11 @@
 name: Build and Push Docker Images
 
 on:
-  # push:
-  #   branches: [ main ]
-  #   paths:
-  #     - 'frontend/**'
-  #     - 'backend/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
   workflow_dispatch:  # Enable manual triggering
 
 env:
@@ -56,8 +56,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-region: ${{ env.AWS_REGION }}
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::879381241087:role/GitHubActionsEKSDeployRole
           
       - name: Login to Amazon ECR
         id: login-ecr
@@ -96,8 +95,8 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-region: ${{ env.AWS_REGION }}
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::879381241087:role/GitHubActionsEKSDeployRole
+          
           
       - name: Login to Amazon ECR
         id: login-ecr

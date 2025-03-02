@@ -403,8 +403,8 @@ I'll provide a step-by-step guide to set up GitHub Actions with AWS OIDC authent
 # 1. Create an OIDC Identity Provider in AWS
 export OIDC_PROVIDER="token.actions.githubusercontent.com"
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-export GITHUB_ORG="your-github-org-or-username"
-export GITHUB_REPO="your-github-repo-name"
+export GITHUB_ORG="akhileshmishrabiz"
+export GITHUB_REPO="DevOpsDojo"
 
 # Create the OIDC provider
 aws iam create-open-id-connect-provider \
