@@ -1,19 +1,47 @@
 name: Build and Push Docker Images
 
 on:
-  push:
-    branches: [ main ]
+  # push:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'frontend/**'
+  #     - 'backend/**'
   workflow_dispatch:  # Enable manual triggering
 
 env:
   AWS_REGION: ap-south-1
   ECR_REPOSITORY_FRONTEND: devopsdozo/frontend
   ECR_REPOSITORY_BACKEND: devopsdozo/backend
-  IMAGE_TAG: latest
+  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
-  build-and-push:
-    name: Build and Push Images
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Check for file changes
+        id: filter
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'backend/**'
+
+  build-and-push-frontend:
+    name: Build and Push Frontend Image
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     
     permissions:
@@ -44,6 +72,36 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG
           echo "Frontend image pushed to ECR: $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG"
           
+      - name: Summary
+        run: |
+          echo "### Frontend Docker Image" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Frontend: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_FRONTEND }}:${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
+
+  build-and-push-backend:
+    name: Build and Push Backend Image
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::879381241087:role/GitHubActionsEKSDeployRole
+          
+          
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        
       - name: Build, tag, and push backend image to Amazon ECR
         working-directory: ./backend
         env:
@@ -56,6 +114,5 @@ jobs:
       
       - name: Summary
         run: |
-          echo "### Docker Images Built and Pushed" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Frontend: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_FRONTEND }}:${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Backend Docker Image" >> $GITHUB_STEP_SUMMARY
           echo "✅ Backend: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY

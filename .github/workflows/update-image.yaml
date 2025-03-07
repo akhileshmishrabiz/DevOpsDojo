@@ -1,0 +1,107 @@
+name: Update Image and Deploy with ArgoCD
+
+on:
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'backend/**'
+  #     - 'frontend/**'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+  ARGOCD_SERVER: your-argocd-server-url  # Replace with your ArgoCD server URL (without https://)
+  KUSTOMIZE_PATH: overlays/dev  # Path to your kustomization directory
+  GITOPS_REPO: your-username/devopsdozo-k8s  # Replace with your GitOps repo name
+  GITOPS_BRANCH: main  # Branch to push updates to
+
+jobs:
+  build-and-update:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Checkout application code
+        uses: actions/checkout@v3
+        with:
+          path: app
+      
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_PAT }}  # Personal Access Token with repo permissions
+          path: gitops
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::879381241087:role/GitHubActionsEKSDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Determine changed components
+        id: changes
+        run: |
+          cd app
+          if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -c "^backend/") -gt 0 ]]; then
+            echo "BACKEND_CHANGED=true" >> $GITHUB_ENV
+          fi
+          if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -c "^frontend/") -gt 0 ]]; then
+            echo "FRONTEND_CHANGED=true" >> $GITHUB_ENV
+          fi
+      
+      - name: Build and push backend image if changed
+        if: env.BACKEND_CHANGED == 'true'
+        id: build-backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd app/backend
+          docker build -t $ECR_REGISTRY/devopsdozo/backend:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/devopsdozo/backend:$IMAGE_TAG
+          echo "BACKEND_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+      
+      - name: Build and push frontend image if changed
+        if: env.FRONTEND_CHANGED == 'true'
+        id: build-frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd app/frontend
+          docker build -t $ECR_REGISTRY/devopsdozo/frontend:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/devopsdozo/frontend:$IMAGE_TAG
+          echo "FRONTEND_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+      
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+      
+      - name: Update image tags in kustomization
+        run: |
+          cd gitops/${{ env.KUSTOMIZE_PATH }}
+          
+          if [[ -n "$BACKEND_TAG" ]]; then
+            kustomize edit set image 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/backend=879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/backend:$BACKEND_TAG
+          fi
+          
+          if [[ -n "$FRONTEND_TAG" ]]; then
+            kustomize edit set image 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/frontend=879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/frontend:$FRONTEND_TAG
+          fi
+      
+      - name: Commit and push changes
+        run: |
+          cd gitops
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'github-actions@github.com'
+          git add .
+          git commit -m "Update image tags for commit ${{ github.sha }}" || echo "No changes to commit"
+          git push
