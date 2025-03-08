@@ -1,8 +1,7 @@
-name: Build and Push Docker Images
-
+name: Build 
 on:
-  push:
-    branches: [ main ]
+  # push:
+  #   branches: [ main ]
   workflow_dispatch:  # Enable manual triggering
 
 env:

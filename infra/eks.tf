@@ -20,8 +20,7 @@ module "eks" {
   enable_cluster_creator_admin_permissions = true
 
   vpc_id     = module.eks_network.vpc_id
-  subnet_ids = ["${module.eks_network.private_subnet_1}", "${module.eks_network.private_subnet_2}"]
-  #   control_plane_subnet_ids = ["subnet-xyzde987", "subnet-slkjf456", "subnet-qeiru789"]
+  subnet_ids = module.eks_network.private_subnets
 
   # EKS Managed Node Group(s)
   eks_managed_node_group_defaults = {

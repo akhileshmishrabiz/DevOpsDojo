@@ -20,7 +20,7 @@ resource "aws_subnet" "private_1" {
 }
 
 resource "aws_subnet" "private_2" {
-  cidr_block        = var.private_subnets_cidr[1]
+  cidr_block        = var.private_subnets_cidr[]
   availability_zone = var.aws_azs[1]
   vpc_id            = aws_vpc.main.id
 
