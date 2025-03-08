@@ -27,7 +27,8 @@ spec:
         - containerPort: 80
         env:
         - name: REACT_APP_API_URL
-          value: "/api"  # For the Nginx proxy approach
+          # value: "/api"  # For the Nginx proxy approach
+          value: ""
         resources:
           requests:
             memory: "128Mi"
