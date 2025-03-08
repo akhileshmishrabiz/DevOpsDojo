@@ -7,5 +7,10 @@ github_repositories = [
     org    = "akhileshmishrabiz"
     repo   = "DevOpsDojo"
     branch = "main"
+  },
+  {
+    org    = "akhileshmishrabiz"
+    repo   = "Devops-zero-to-hero"
+    branch = "*"
   }
 ]

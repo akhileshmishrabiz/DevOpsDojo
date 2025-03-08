@@ -1,6 +1,3 @@
-provider "aws" {
-  region = var.aws_region
-}
 
 locals {
   eks_ecr_policy_json = jsonencode({
@@ -38,8 +35,8 @@ locals {
   }
 }
 
-module "github_oidc" {
-  source = "./modules/github-oidc"
+module "oidc" {
+  source = "./modules/oidc"
   
   role_name   = "GitHubActionsEKSDeployRole"
   policy_name = "GitHubActionsEKSPolicy"
