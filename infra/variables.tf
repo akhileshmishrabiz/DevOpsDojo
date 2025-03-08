@@ -4,12 +4,6 @@ variable "aws_region" {
   default     = "ap-south-1"
 }
 
-variable "environment" {
-  description = "Environment name"
-  type        = string
-  default     = "production"
-}
-
 variable "project_name" {
   description = "Project name"
   type        = string
@@ -30,4 +24,30 @@ variable "github_repositories" {
       branch = "*"
     }
   ]
+}
+
+
+variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = "dev"
+}
+variable "prefix" {
+  description = "Prefix to be used for all resources"
+  type        = string
+  default     = "bootcamp"
+}
+
+variable "db_default_settings" {
+  type = any
+  default = {
+    allocated_storage       = 30
+    max_allocated_storage   = 50
+    engine_version          = 14.15
+    instance_class          = "db.t3.micro"
+    backup_retention_period = 2
+    db_name                 = "postgres"
+    ca_cert_name            = "rds-ca-rsa2048-g1"
+    db_admin_username       = "postgres"
+  }
 }

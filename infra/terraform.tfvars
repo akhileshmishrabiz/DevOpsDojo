@@ -1,5 +1,5 @@
-aws_region = "ap-south-1"
-environment = "dev"
+aws_region   = "ap-south-1"
+environment  = "dev"
 project_name = "DevOpsDojo"
 
 github_repositories = [
