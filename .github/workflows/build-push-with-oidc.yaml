@@ -56,7 +56,9 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: arn:aws:iam::879381241087:role/GitHubActionsEKSDeployRole
+          # role-to-assume: arn:aws:iam::879381241087:role/GitHubActionsEKSDeployRole
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           
       - name: Login to Amazon ECR
         id: login-ecr

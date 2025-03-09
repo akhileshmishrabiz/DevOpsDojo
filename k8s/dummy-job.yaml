@@ -1,0 +1,21 @@
+# NGINX Pod definition
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+  namespace: devopsdozo
+  labels:
+    app: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:latest
+    ports:
+    - containerPort: 80
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "100m"
+      limits:
+        memory: "128Mi"
+        cpu: "200m"

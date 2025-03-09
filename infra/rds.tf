@@ -97,12 +97,13 @@ resource "aws_secretsmanager_secret_version" "dbs_secret_val" {
 }
 
 resource "aws_db_subnet_group" "postgres" {
-  name        = "${var.prefix}-${var.environment}-db-subnet-group"
+  name        = "${var.prefix}-${var.environment}-rds-db-subnet-group"
   description = "Subnet group for RDS instance"
   subnet_ids = [
     aws_subnet.rds_1.id,
     aws_subnet.rds_2.id
   ]
+  # subnet_ids =["subnet-0f42a1b9efaf4e602", "subnet-0395e32fc16981198"]
 
   tags = {
     Name        = "${var.prefix}-${var.environment}-db-subnet-group"
