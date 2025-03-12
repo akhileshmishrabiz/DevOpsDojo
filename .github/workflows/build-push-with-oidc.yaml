@@ -1,11 +1,11 @@
 name: Build and Push Docker Images
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'frontend/**'
-      - 'backend/**'
+  # push:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'frontend/**'
+  #     - 'backend/**'
   workflow_dispatch:  # Enable manual triggering
 
 env:
