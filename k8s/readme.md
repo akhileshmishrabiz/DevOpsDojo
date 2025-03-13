@@ -173,6 +173,7 @@ kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/secrets.yaml
 # Update the database-service.yaml with database endpoint 
 kubectl apply -f k8s/database-service.yaml
+kubectl apply -f k8s/backend-service
 
 # this job is only run when there is a change in schema or the first time while deployig the app
 kubectl apply -f k8s/migration_job.yaml  # it run once 
@@ -199,7 +200,7 @@ curl http://localhost:8000/api/topics
 
 ## to check the db connection for troubleshooting
 kubectl run debug-pod  -n devopsdozo --rm -it --image=postgres -- bash
-PGPASSWORD=postgrespassword psql -h devopsdozo-db.devopsdozo.svc.cluster.local -U postgres -d devopsdozo
+PGPASSWORD=6Cn86RkO9n psql -h devopsdozo-db.devopsdozo.svc.cluster.local -U postgres -d postgres
 # run query
 SELECT COUNT(*) FROM topics;
 
