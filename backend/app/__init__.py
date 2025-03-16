@@ -5,6 +5,7 @@ from .config import Config
 from .models import db
 from .models.models import Topic, Question
 from .routes import topic_bp, quiz_bp, api_bp 
+import os
 
 migrate = Migrate()
 
