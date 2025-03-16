@@ -13,7 +13,12 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
     
     # Initialize extensions
-    CORS(app)
+    # CORS(app)
+     CORS(app, origins=["https://akhileshmishra.tech", "http://akhileshmishra.tech", 
+                        "http://www.akhileshmishra.tech",
+                       # Include your ALB DNS for testing
+                       "k8s-3tierapp-3tierapp-6901451c13-1079726941.eu-west-1.elb.amazonaws.com"])
+    
     db.init_app(app)
     migrate.init_app(app, db)
     
