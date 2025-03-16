@@ -13,11 +13,17 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
     
     # Initialize extensions
-    # CORS(app)
-     CORS(app, origins=["https://akhileshmishra.tech", "http://akhileshmishra.tech", 
-                        "http://www.akhileshmishra.tech",
-                       # Include your ALB DNS for testing
-                       "k8s-3tierapp-3tierapp-6901451c13-1079726941.eu-west-1.elb.amazonaws.com"])
+
+
+    # Check if ALLOWED_ORIGINS environment variable exists
+    if os.getenv('ALLOWED_ORIGINS'):
+        # Get allowed origins from environment variable
+        allowed_origins = os.getenv('ALLOWED_ORIGINS').split(',')
+        # Initialize CORS with specific origins
+        CORS(app, origins=allowed_origins)
+    else:
+        # Use default behavior (allow all origins)
+        CORS(app)
     
     db.init_app(app)
     migrate.init_app(app, db)
