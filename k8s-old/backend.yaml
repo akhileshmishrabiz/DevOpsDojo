@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
-  namespace: 3-tier-app-eks
+  namespace: devopsdozo
   labels:
     app: backend
 spec:
@@ -25,16 +25,13 @@ spec:
       initContainers:
       - name: wait-for-db
         image: busybox
-        command: ['sh', '-c', 'until nslookup postgres-db.3-tier-app-eks.svc.cluster.local; do echo waiting for database; sleep 2; done;']
+        command: ['sh', '-c', 'until nslookup devopsdozo-db.devopsdozo.svc.cluster.local; do echo waiting for database; sleep 2; done;']
       containers:
       - name: backend
-        image: livingdevopswithakhilesh/devopsdozo:backend-latest
-        imagePullPolicy: Always
+        image: 879381241087.dkr.ecr.ap-south-1.amazonaws.com/devopsdozo/backend:07b443d43430a92d87ee9123311c5c9812e9344a
         ports:
         - containerPort: 8000
         env:
-        - name: ALLOWED_ORIGINS
-          value: "https://akhileshmishra.tech,http://akhileshmishra.tech"
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
@@ -57,16 +54,3 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "500m"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: backend
-  namespace: 3-tier-app-eks
-spec:
-  selector:
-    app: backend
-  ports:
-  - port: 8000
-    targetPort: 8000
-  type: ClusterIP
