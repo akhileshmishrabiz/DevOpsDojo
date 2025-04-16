@@ -6,21 +6,8 @@ Backend: Flask
 
 Database: Postgres
 
+chmod +x frontend/docker-entrypoint.sh
 
-## Build and start the containers( given docker and docker-compose are instaled)
+chmod +x frontend/docker-entrypoint.sh
 
-docker-compose up --build
 
-## Initialize the database (first time only) In a new terminal
-
-docker-compose exec backend flask db upgrade
-
-docker-compose exec backend python seed_data.py
-
-## Stop the application:
-
-docker-compose down
-
-## start the application 
-
-docker-compose dow

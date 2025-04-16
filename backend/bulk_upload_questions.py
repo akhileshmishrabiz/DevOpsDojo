@@ -13,13 +13,47 @@ def bulk_upload_questions(csv_file_path, batch_size=100):
             total_processed = 0
             total_success = 0
             total_failed = 0
+            topics_created = 0
             
             for row in csv_reader:
                 try:
-                    # Find the topic
-                    topic = Topic.query.filter_by(slug=row['topic_slug']).first()
+                    topic_slug = row['topic_slug'].strip()
+                    
+                    # Find or create the topic
+                    topic = Topic.query.filter_by(slug=topic_slug).first()
                     if not topic:
-                        print(f"Topic not found: {row['topic_slug']}")
+                        # Create a new topic with default values based on slug
+                        topic_name = topic_slug.replace('-', ' ').title()
+                        topic = Topic(
+                            name=topic_name,
+                            description=f"Questions about {topic_name}",
+                            slug=topic_slug
+                        )
+                        db.session.add(topic)
+                        db.session.commit()  # Commit immediately to get the ID
+                        topics_created += 1
+                        print(f"Created new topic: {topic_name} ({topic_slug})")
+                    
+                    # Parse options from CSV format
+                    options = []
+                    for i in range(1, 5):
+                        option_key = f'option{i}'
+                        if option_key in row and row[option_key]:
+                            options.append(row[option_key])
+                    
+                    # If CSV has a single options column instead of option1, option2, etc.
+                    if 'options' in row and not options:
+                        # Try to parse options as a list
+                        try:
+                            import json
+                            options = json.loads(row['options'])
+                        except:
+                            # Fallback: assume comma-separated values
+                            options = [opt.strip() for opt in row['options'].split(',')]
+                    
+                    # Validate options
+                    if len(options) != 4:
+                        print(f"Error: Question must have exactly 4 options (row has {len(options)})")
                         total_failed += 1
                         continue
                     
@@ -27,12 +61,7 @@ def bulk_upload_questions(csv_file_path, batch_size=100):
                     question = Question(
                         topic_id=topic.id,
                         question_text=row['question_text'],
-                        options=[
-                            row['option1'],
-                            row['option2'],
-                            row['option3'],
-                            row['option4']
-                        ],
+                        options=options,
                         correct_answer=int(row['correct_answer'])
                     )
                     
@@ -72,6 +101,7 @@ def bulk_upload_questions(csv_file_path, batch_size=100):
             print(f"Total Processed: {total_processed}")
             print(f"Successfully Uploaded: {total_success}")
             print(f"Failed: {total_failed}")
+            print(f"Topics Created: {topics_created}")
 
 if __name__ == '__main__':
     import sys
