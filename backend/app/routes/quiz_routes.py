@@ -3,6 +3,7 @@ from app.models.models import Topic, Question
 from app.models import db
 from . import quiz_bp
 import random
+import string
 
 MAX_QUIZ_QUESTIONS = 15
 
@@ -76,9 +77,18 @@ def manage_questions():
         if not all(k in data for k in ('topic_slug', 'question_text', 'options', 'correct_answer')):
             return jsonify({'error': 'Missing required fields'}), 400
             
+        # Find or create topic
         topic = Topic.query.filter_by(slug=data['topic_slug']).first()
         if not topic:
-            return jsonify({'error': f'Topic not found: {data["topic_slug"]}'}), 404
+            # Create a new topic with default values based on slug
+            topic_name = data['topic_slug'].replace('-', ' ').title()
+            topic = Topic(
+                name=topic_name,
+                description=f"Questions about {topic_name}",
+                slug=data['topic_slug']
+            )
+            db.session.add(topic)
+            db.session.commit()
             
         try:
             question = Question(
@@ -113,8 +123,9 @@ def bulk_upload_questions():
     failed_count = 0
     errors = []
     valid_questions = []
+    created_topics = []
     
-    # First pass: Validate all questions
+    # First pass: Validate all questions and create topics if needed
     for index, question_data in enumerate(questions_data):
         try:
             # Skip empty rows
@@ -155,16 +166,33 @@ def bulk_upload_questions():
                 errors.append(f"Row {index + 1}: Invalid correct_answer value")
                 continue
 
-            # Find topic
-            topic = Topic.query.filter_by(slug=question_data['topic_slug']).first()
+            # Find or create topic
+            topic_slug = question_data['topic_slug'].strip()
+            topic = Topic.query.filter_by(slug=topic_slug).first()
+            
             if not topic:
-                failed_count += 1
-                errors.append(f"Row {index + 1}: Topic not found: {question_data['topic_slug']}")
-                continue
+                # Track which topics we've created during this operation
+                if topic_slug not in created_topics:
+                    # Generate a nice title from the slug
+                    topic_name = topic_slug.replace('-', ' ').title()
+                    
+                    # Create new topic
+                    topic = Topic(
+                        name=topic_name,
+                        description=f"Questions about {topic_name}",
+                        slug=topic_slug
+                    )
+                    db.session.add(topic)
+                    created_topics.append(topic_slug)
+                    print(f"Created new topic: {topic_name} ({topic_slug})")
+                else:
+                    # We've created this topic during this batch, but it's not committed yet
+                    topic = Topic.query.filter_by(slug=topic_slug).first()
 
             # If all validations pass, add to valid questions
             valid_questions.append({
-                'topic_id': topic.id,
+                'topic_id': topic.id if topic.id else None,  # Will be set after commit
+                'topic_slug': topic_slug,  # Keep track of slug for topics created in this batch
                 'question_text': question_data['question_text'].strip(),
                 'options': [str(opt).strip() for opt in question_data['options']],
                 'correct_answer': correct_answer
@@ -175,10 +203,32 @@ def bulk_upload_questions():
             errors.append(f"Row {index + 1}: {str(e)}")
             continue
     
+    # Commit new topics first if any were created
+    if created_topics:
+        try:
+            db.session.commit()
+            print(f"Successfully created {len(created_topics)} new topics")
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+                'error': 'Failed to create new topics',
+                'detail': str(e),
+                'errors': errors
+            }), 400
+    
     # Second pass: Add valid questions to database
     if valid_questions:
         try:
             for question_data in valid_questions:
+                # If we were tracking by slug for new topics, get the actual topic id now
+                if question_data['topic_id'] is None:
+                    topic = Topic.query.filter_by(slug=question_data['topic_slug']).first()
+                    question_data['topic_id'] = topic.id
+                
+                # Remove the temporary slug field
+                if 'topic_slug' in question_data:
+                    question_data.pop('topic_slug')
+                
                 question = Question(**question_data)
                 db.session.add(question)
                 success_count += 1
@@ -195,5 +245,6 @@ def bulk_upload_questions():
     return jsonify({
         'success': success_count,
         'failed': failed_count,
+        'topics_created': len(created_topics),
         'errors': errors if errors else None
     })
