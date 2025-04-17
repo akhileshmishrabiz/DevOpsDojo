@@ -3,8 +3,8 @@ from flask_cors import CORS
 from flask_migrate import Migrate
 from .config import Config
 from .models import db
-from .models.models import Topic, Question
-from .routes import topic_bp, quiz_bp, api_bp 
+from .models.models import Topic, Question, WikiPage
+from .routes import topic_bp, quiz_bp, api_bp, wiki_bp
 import os
 
 migrate = Migrate()
@@ -33,6 +33,7 @@ def create_app(config_class=Config):
     # Register blueprints
     app.register_blueprint(topic_bp)
     app.register_blueprint(quiz_bp)
+    app.register_blueprint(wiki_bp)
     app.register_blueprint(api_bp)
     
     # Health check route

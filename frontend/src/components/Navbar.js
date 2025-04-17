@@ -13,6 +13,9 @@ function Navbar() {
             <Link to="/" className="text-white hover:text-gray-300">
               Home
             </Link>
+            <Link to="/wiki" className="text-white hover:text-gray-300">
+              Wiki
+            </Link>
             <Link to="/manage-questions" className="text-white hover:text-gray-300">
               Manage Questions
             </Link>
