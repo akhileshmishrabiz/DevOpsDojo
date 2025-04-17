@@ -64,3 +64,29 @@ class Question(db.Model):
             'options': self.options,
             'correct_answer': self.correct_answer
         }
+
+class WikiPage(db.Model):
+    __tablename__ = 'wiki_pages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(100), unique=True, nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(100), nullable=False)  # e.g., "roadmap", "links", "guides"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    author = db.Column(db.String(100), nullable=True)
+    is_published = db.Column(db.Boolean, default=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'slug': self.slug,
+            'title': self.title,
+            'content': self.content,
+            'category': self.category,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'author': self.author,
+            'is_published': self.is_published
+        }
