@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API_URL from '../config/api';
+import QuizResults from './QuizResults'; // Import the new component
 
 function Quiz() {
   const { topic } = useParams();
@@ -10,16 +11,38 @@ function Quiz() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Add user state - in a real app you'd get this from authentication
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    // In a real app, get this from your authentication system
+    // This is just a placeholder implementation
+    const generateTempUserId = () => {
+      // Generate a simple user ID from local storage or create a new one
+      let id = localStorage.getItem('tempUserId');
+      if (!id) {
+        id = 'user_' + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('tempUserId', id);
+      }
+      return id;
+    };
+
+    setUserId(generateTempUserId());
+  }, []);
 
   const fetchQuiz = useCallback(async () => {
     try {
       setLoading(true);
+      console.log(`Fetching quiz for topic: ${topic}`);
       const response = await fetch(`${API_URL}/api/quiz/${topic}`);
+      
       if (!response.ok) {
+        console.error(`Failed to fetch quiz: ${response.status} ${response.statusText}`);
         throw new Error('Failed to fetch quiz');
       }
+      
       const data = await response.json();
-      console.log('Fetched quiz:', data);
+      console.log('Fetched quiz data:', data);
       setQuiz(data);
       setAnswers({}); // Reset answers when getting new questions
       setError(null);
@@ -36,6 +59,7 @@ function Quiz() {
   }, [fetchQuiz]);
 
   const handleAnswerSelect = (questionId, answerIndex) => {
+    console.log(`Selected answer for question ${questionId}: ${answerIndex}`);
     setAnswers(prev => ({
       ...prev,
       [questionId]: answerIndex
@@ -47,6 +71,9 @@ function Quiz() {
       // Check if all questions are answered
       const answeredQuestions = Object.keys(answers).length;
       const totalQuestions = quiz.questions.length;
+
+      console.log(`Questions answered: ${answeredQuestions}/${totalQuestions}`);
+      console.log('Current answers:', answers);
 
       if (answeredQuestions < totalQuestions) {
         alert(`Please answer all questions (${answeredQuestions}/${totalQuestions} answered)`);
@@ -72,12 +99,37 @@ function Quiz() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Error response from server:', errorData);
         throw new Error(errorData.error || 'Failed to submit quiz');
       }
 
       const data = await response.json();
-      console.log('Quiz result received:', data);  // Debug log
-      setResult(data);
+      console.log('Quiz result received from API:', data);
+      
+      // Make sure we have all the expected data
+      if (data.correct === undefined || data.total === undefined) {
+        console.error('Invalid quiz result format:', data);
+        throw new Error('Invalid quiz result format');
+      }
+      
+      // Calculate exact score to ensure consistency
+      const calculatedScore = (data.correct / data.total) * 100;
+      console.log('Calculated raw score:', calculatedScore);
+      
+      // Round to 2 decimal places for display
+      const roundedScore = Math.round(calculatedScore * 100) / 100;
+      console.log('Rounded score for display:', roundedScore);
+      
+      // Create a consistent result object
+      const finalResult = {
+        correct: data.correct,
+        total: data.total,
+        score: calculatedScore,  // Store exact score for calculations
+        displayScore: roundedScore  // Rounded score for display
+      };
+      
+      console.log('Final result object:', finalResult);
+      setResult(finalResult);
     } catch (err) {
       console.error('Error submitting quiz:', err);
       setError('Failed to submit quiz. Please try again.');
@@ -85,6 +137,7 @@ function Quiz() {
   };
 
   const handleTryAgain = async () => {
+    console.log('Trying another quiz');
     setResult(null);
     setAnswers({});
     await fetchQuiz();
@@ -170,17 +223,28 @@ function Quiz() {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="bg-white rounded-lg shadow-md p-8">
           <h2 className="text-2xl font-bold mb-4">Quiz Results</h2>
+          
           <div className="bg-blue-50 p-6 rounded-lg mb-6">
             <p className="text-4xl font-bold text-blue-600 mb-2">
-              {Math.round(result.score)}%
+              {/* Use displayScore for showing the percentage */}
+              {Math.round(result.displayScore)}%
             </p>
             <p className="text-lg text-blue-800">
               You got {result.correct} out of {result.total} questions correct
             </p>
           </div>
-          <div className="space-x-4">
+          
+          {/* Integrate the new QuizResults component */}
+          <QuizResults 
+            userId={userId}
+            topic={topic}
+            answers={answers}
+            quizResult={result}
+          />
+          
+          <div className="mt-6 space-x-4 text-center">
             <button
               onClick={handleTryAgain}
               className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition-colors"

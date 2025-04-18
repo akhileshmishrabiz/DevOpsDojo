@@ -1,0 +1,4 @@
+{
+  "body": "{\"userId\":\"test123\",\"topic\":\"docker\",\"answers\":{\"1\":0,\"2\":1,\"3\":2},\"correct\":1,\"total\":3,\"score\":33.33}",
+  "path": "/analyze-results"
+}
