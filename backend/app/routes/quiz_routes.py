@@ -30,7 +30,7 @@ def get_quiz(topic_slug):
     
     return jsonify({
         'title': topic.name,
-        'questions': [q.to_dict(shuffle=True) for q in selected_questions],
+        'questions': [q.to_dict(shuffle=False) for q in selected_questions],
         'total_questions': len(all_questions),
         'selected_questions': len(selected_questions)
     })
