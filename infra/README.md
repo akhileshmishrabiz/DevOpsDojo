@@ -321,6 +321,75 @@ private_subnet_tags = {
 }
 ```
 
+### Nodes Show as NotReady - CNI Plugin Not Initialized
+
+**Problem**: EC2 instances are created and visible with `kubectl get nodes` but show `NotReady` status with error:
+```
+container runtime network not ready: NetworkReady=false 
+reason:NetworkPluginNotReady message:Network plugin returns error: 
+cni plugin not initialized
+```
+
+**Root Cause**: 
+This is a **race condition** in the EKS Terraform module where:
+1. The EKS cluster is created first
+2. Managed node groups are created immediately after cluster becomes `ACTIVE`
+3. EKS addons (including VPC CNI) installation happens in parallel but takes longer
+4. Nodes boot up and try to join before the CNI plugin is available
+
+**Why Terraform Module Has This Issue**:
+- **Implicit Dependencies**: The terraform-aws-modules/eks module doesn't create proper dependencies between node groups and addons
+- **AWS API Timing**: EKS cluster status becomes `ACTIVE` before all addons are fully deployed
+- **Bootstrap Race**: Node bootstrap process starts before CNI daemonset is running
+- **Terraform State Locks**: If `terraform apply` is interrupted, addons may not be installed
+
+**Symptoms**:
+- Nodes visible in `kubectl get nodes` but status is `NotReady`
+- No pods in `kube-system` namespace or only partial system pods
+- `aws eks list-addons` returns empty array `[]`
+- Node describe shows CNI network plugin errors
+
+**Immediate Solution**:
+```bash
+# 1. Check if addons are missing
+aws eks list-addons --cluster-name <cluster-name> --region <region>
+
+# 2. Install missing addons manually
+aws eks create-addon --cluster-name <cluster-name> --addon-name vpc-cni --region <region>
+aws eks create-addon --cluster-name <cluster-name> --addon-name coredns --region <region>
+aws eks create-addon --cluster-name <cluster-name> --addon-name kube-proxy --region <region>
+aws eks create-addon --cluster-name <cluster-name> --addon-name eks-pod-identity-agent --region <region>
+
+# 3. Wait 2-3 minutes and check nodes
+kubectl get nodes -o wide
+```
+
+**Prevention in Terraform**:
+Add explicit dependencies in your EKS module:
+```hcl
+# In eks.tf - Add this to prevent race conditions
+resource "time_sleep" "wait_for_cluster" {
+  depends_on = [module.eks]
+  create_duration = "30s"
+}
+
+# Or use depends_on in node groups
+eks_managed_node_groups = {
+  example = {
+    # ... node group config
+    
+    # Force dependency on cluster addons
+    depends_on = [
+      aws_eks_addon.vpc_cni,
+      aws_eks_addon.coredns
+    ]
+  }
+}
+```
+
+**Long-term Solution**:
+Consider using terraform-aws-modules/eks v21+ which has better addon handling, or implement explicit addon resources with proper dependencies.
+
 ### Common Commands
 
 ```bash
