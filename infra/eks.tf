@@ -1,9 +1,9 @@
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "20.33.1"
+  version = "~> 20.0"  # Using v20 to maintain aws-auth compatibility
 
   cluster_name    = "${var.prefix}-${var.environment}-cluster"
-  cluster_version = "1.31"
+  cluster_version = "1.31"  # Latest stable version with good support
 
   bootstrap_self_managed_addons = false
   cluster_addons = {
@@ -35,7 +35,7 @@ module "eks" {
 
       min_size     = 1
       max_size     = 3
-      desired_size = 1
+      desired_size = 2
     }
   }
 

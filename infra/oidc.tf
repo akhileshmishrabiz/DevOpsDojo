@@ -35,15 +35,15 @@ locals {
   }
 }
 
-module "oidc" {
-  source = "./modules/oidc"
+# module "oidc" {
+#   source = "./modules/oidc"
 
-  role_name   = "GitHubActionsEKSDeployRole"
-  policy_name = "GitHubActionsEKSPolicy"
+#   role_name   = "GitHubActionsEKSDeployRole"
+#   policy_name = "GitHubActionsEKSPolicy"
 
-  github_repositories = var.github_repositories
+#   github_repositories = var.github_repositories
 
-  policy_json = local.eks_ecr_policy_json
+#   policy_json = local.eks_ecr_policy_json
 
-  tags = local.common_tags
-}
+#   tags = local.common_tags
+# }

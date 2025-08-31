@@ -35,7 +35,7 @@ variable "environment" {
 variable "prefix" {
   description = "Prefix to be used for all resources"
   type        = string
-  default     = "bootcamp"
+  default     = "main"
 }
 
 variable "db_default_settings" {

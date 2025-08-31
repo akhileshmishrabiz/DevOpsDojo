@@ -11,7 +11,8 @@
 
 ## using a public module ##
 module "eks_network" {
-  source = "terraform-aws-modules/vpc/aws"
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"  # Using v5 for AWS Provider v5 compatibility
 
   name = "${var.prefix}-${var.environment}-vpc"
   cidr = "10.0.0.0/16"
@@ -25,4 +26,15 @@ module "eks_network" {
 
   enable_dns_hostnames = true
   enable_dns_support   = true
+
+  # Required tags for EKS cluster subnet discovery
+  public_subnet_tags = {
+    "kubernetes.io/cluster/${var.prefix}-${var.environment}-cluster" = "shared"
+    "kubernetes.io/role/elb"                                         = "1"
+  }
+
+  private_subnet_tags = {
+    "kubernetes.io/cluster/${var.prefix}-${var.environment}-cluster" = "shared"
+    "kubernetes.io/role/internal-elb"                                = "1"
+  }
 }
