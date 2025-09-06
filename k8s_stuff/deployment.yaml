@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: volume-test-deployment
+  namespace: default
+  labels:
+    app: volume-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: volume-test
+  template:
+    metadata:
+      labels:
+        app: volume-test
+    spec:
+      containers:
+      - name: nginx-with-volume
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: test-storage
+          mountPath: /usr/share/nginx/html
+        - name: data-storage
+          mountPath: /data
+        command: ["/bin/sh"]
+        args:
+          - -c
+          - |
+            echo "<h1>Volume Test Pod</h1>" > /usr/share/nginx/html/index.html
+            echo "<p>Volume mounted at: /data</p>" >> /usr/share/nginx/html/index.html
+            echo "<p>Current time: $(date)</p>" >> /usr/share/nginx/html/index.html
+            echo "Volume test data created at $(date)" > /data/test-file.txt
+            echo "Testing volume persistence..." >> /data/test-file.txt
+            ls -la /data/ >> /usr/share/nginx/html/index.html
+            nginx -g "daemon off;"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+      volumes:
+      - name: test-storage
+        emptyDir: {}
+      - name: data-storage
+        persistentVolumeClaim:
+          claimName: test-ebs-pvc

@@ -6,11 +6,26 @@ module "eks" {
   cluster_version = "1.31"  # Latest stable version with good support
 
   bootstrap_self_managed_addons = false
+  
+  # EKS Addons with proper configuration
   cluster_addons = {
-    coredns                = {}
-    eks-pod-identity-agent = {}
-    kube-proxy             = {}
-    vpc-cni                = {}
+    coredns = {
+      most_recent = true
+    }
+    eks-pod-identity-agent = {
+      most_recent = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    vpc-cni = {
+      most_recent = true
+      before_compute = true  # Ensure CNI is ready before nodes join
+    }
+    aws-ebs-csi-driver = {
+      most_recent              = true
+      service_account_role_arn = module.ebs_csi_irsa_role.iam_role_arn
+    }
   }
 
   # Optional
@@ -25,6 +40,11 @@ module "eks" {
   # EKS Managed Node Group(s)
   eks_managed_node_group_defaults = {
     instance_types = ["t3.medium", "t3.micro"]
+    
+    # Ensure proper IAM permissions for EBS volumes (backup to IRSA)
+    iam_role_additional_policies = {
+      AmazonEBSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+    }
   }
 
   eks_managed_node_groups = {
@@ -36,6 +56,11 @@ module "eks" {
       min_size     = 1
       max_size     = 3
       desired_size = 2
+      
+      # Ensure nodes wait for addons to be ready
+      depends_on = [
+        module.eks.cluster_addons
+      ]
     }
   }
 
@@ -45,3 +70,24 @@ module "eks" {
     repo        = "DevOpsDojo"
   }
 }
+
+# # IRSA role for EBS CSI Driver
+# module "ebs_csi_irsa_role" {
+#   source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+
+#   role_name             = "${var.prefix}-${var.environment}-ebs-csi-role"
+#   attach_ebs_csi_policy = true
+
+#   oidc_providers = {
+#     ex = {
+#       provider_arn               = module.eks.oidc_provider_arn
+#       namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
+#     }
+#   }
+
+#   tags = {
+#     Environment = var.environment
+#     Terraform   = "true"
+#     repo        = "DevOpsDojo"
+#   }
+# }

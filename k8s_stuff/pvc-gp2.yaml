@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-ebs-pvc-gp2
+  namespace: default
+  labels:
+    app: volume-test-gp2
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp2  # Use existing default storage class
+  resources:
+    requests:
+      storage: 10Gi
