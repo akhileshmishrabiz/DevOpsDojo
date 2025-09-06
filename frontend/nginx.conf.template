@@ -8,11 +8,16 @@ server {
         try_files $uri $uri/ /index.html;
     }
     
+    # Redirect /api to /api/ for consistency
+    location = /api {
+        return 301 /api/;
+    }
+    
     # Proxy /api requests to the backend service
-    location /api {
+    location /api/ {
         # Use environment variable substitution for backend URL
         # This will be replaced at runtime by envsubst
-        proxy_pass ${BACKEND_URL}/api;
+        proxy_pass ${BACKEND_URL}/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
