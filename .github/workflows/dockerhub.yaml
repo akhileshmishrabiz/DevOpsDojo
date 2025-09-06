@@ -6,7 +6,7 @@ on:
 
 env:
   DOCKERHUB_REPOSITORY: livingdevopswithakhilesh/devopsdozo
-  IMAGE_TAG: latest
+  IMAGE_TAG: latest-1
 
 jobs:
   build-and-push:
