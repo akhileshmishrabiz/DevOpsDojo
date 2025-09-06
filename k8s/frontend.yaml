@@ -27,8 +27,8 @@ spec:
         ports:
         - containerPort: 80
         env:
-        - name: NAMESPACE
-          value: "3-tier-app-eks"
+        - name: BACKEND_URL
+          value: "http://backend.3-tier-app-eks.svc.cluster.local:8000"
         resources:
           requests:
             memory: "128Mi"
@@ -38,13 +38,13 @@ spec:
             cpu: "300m"
         readinessProbe:
           httpGet:
-            path: /
+            path: /health
             port: 80
           initialDelaySeconds: 10
           periodSeconds: 5
         livenessProbe:
           httpGet:
-            path: /
+            path: /health
             port: 80
           initialDelaySeconds: 15
           periodSeconds: 20
