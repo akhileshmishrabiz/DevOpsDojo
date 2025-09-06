@@ -24,7 +24,7 @@ FROM nginx:alpine
 COPY --from=build /app/build /usr/share/nginx/html
 
 # Copy nginx configuration template and entrypoint script
-COPY nginx.conf /etc/nginx/templates/default.conf.template
+COPY nginx.conf.template /etc/nginx/conf.d/nginx.conf.template
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 
 # Install envsubst utility and make script executable
@@ -34,8 +34,7 @@ RUN apk add --no-cache bash && \
 # Expose port
 EXPOSE 80
 
-# Set default value for BACKEND_SERVICE_URL if not provided
-ENV BACKEND_SERVICE_URL=http://backend:8000
+# Remove static environment variable - will be set dynamically
 
 # Start nginx with environment variable substitution
 CMD ["/docker-entrypoint.sh"]

@@ -35,8 +35,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Run migrations and then start the app
-    command: bash -c "./migrate.sh && gunicorn --bind 0.0.0.0:8000 run:app"
+    command: bash -c "sleep 10 && ./migrate.sh && gunicorn --bind 0.0.0.0:8000 run:app"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
       interval: 30s
@@ -49,8 +48,7 @@ services:
     ports:
       - "3000:80"
     environment:
-      - REACT_APP_API_URL=http://localhost:8000
-      - BACKEND_SERVICE_URL=http://backend:8000
+      - BACKEND_URL=http://backend:8000
     depends_on:
       - backend
 
