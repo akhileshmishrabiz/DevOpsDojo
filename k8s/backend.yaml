@@ -28,7 +28,7 @@ spec:
         command: ['sh', '-c', 'until nslookup postgres-db.3-tier-app-eks.svc.cluster.local; do echo waiting for database; sleep 2; done;']
       containers:
       - name: backend
-        image: livingdevopswithakhilesh/devopsdozo:backend-latest
+        image: livingdevopswithakhilesh/devopsdozo:backend-latest-1
         imagePullPolicy: Always
         ports:
         - containerPort: 8000

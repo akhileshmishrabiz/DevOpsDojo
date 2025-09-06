@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
       - name: migration
-        image: livingdevopswithakhilesh/devopsdozo:backend-latest
+        image: livingdevopswithakhilesh/devopsdozo:backend-latest-1
         imagePullPolicy: Always
 
         command: ["/bin/bash", "-c", "./migrate.sh"]
