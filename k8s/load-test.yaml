@@ -1,0 +1,50 @@
+# Load Testing Job to Generate Metrics
+# This creates traffic to see metrics in action
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: load-test
+  namespace: 3-tier-app-eks
+spec:
+  parallelism: 3
+  completions: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: load-test
+        image: curlimages/curl:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting load test..."
+          BACKEND_URL="http://backend.3-tier-app-eks.svc.cluster.local:8000"
+          FRONTEND_URL="http://frontend.3-tier-app-eks.svc.cluster.local"
+          
+          # Test different endpoints
+          for i in $(seq 1 100); do
+            echo "Request $i"
+            
+            # Test health endpoint
+            curl -s "$BACKEND_URL/health" || true
+            
+            # Test metrics endpoint
+            curl -s "$BACKEND_URL/metrics" || true
+            
+            # Test API endpoints (if they exist)
+            curl -s -X POST "$BACKEND_URL/api/login" \
+              -H "Content-Type: application/json" \
+              -d '{"username":"test","password":"test"}' || true
+            
+            curl -s "$BACKEND_URL/api/products" || true
+            
+            # Test frontend
+            curl -s "$FRONTEND_URL" || true
+            
+            # Random delay
+            sleep $((RANDOM % 5 + 1))
+          done
+          
+          echo "Load test completed"

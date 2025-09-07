@@ -1,0 +1,395 @@
+# Production-grade Prometheus Stack Configuration
+# For 3-tier application monitoring on EKS
+
+commonLabels:
+  environment: production
+  cluster: devops-dojo
+
+# Prometheus Configuration
+prometheus:
+  prometheusSpec:
+    # Data retention
+    retention: 30d
+    retentionSize: 45GB
+    
+    # High availability
+    replicas: 2
+    
+    # Resource allocation
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 2
+        memory: 4Gi
+    
+    # Storage configuration for production
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    
+    # Service discovery - discover all ServiceMonitors
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    
+    # Enable service discovery across all namespaces
+    serviceMonitorNamespaceSelector: {}
+    podMonitorNamespaceSelector: {}
+    ruleNamespaceSelector: {}
+    
+    # Scrape interval
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    
+    # External labels for federation
+    externalLabels:
+      cluster: devops-dojo
+      replica: prometheus
+    
+    # Additional scrape configs for custom targets
+    additionalScrapeConfigs:
+    # Backend metrics
+    - job_name: 'backend-app'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - 3-tier-app-eks
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: backend
+      - source_labels: [__meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: metrics
+      - source_labels: [__address__]
+        target_label: __address__
+        regex: (.+)
+        replacement: ${1}
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: job
+        replacement: ${1}
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+
+# AlertManager Configuration
+alertmanager:
+  alertmanagerSpec:
+    # High availability
+    replicas: 2
+    
+    # Resources
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+    
+    # Storage
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+    
+    # Configuration
+    config:
+      global:
+        smtp_smarthost: 'localhost:587'
+        smtp_from: 'alerts@devops-dojo.com'
+      
+      route:
+        group_by: ['alertname', 'cluster', 'service']
+        group_wait: 10s
+        group_interval: 10s
+        repeat_interval: 1h
+        receiver: 'web.hook'
+        routes:
+        - match:
+            severity: critical
+          receiver: 'critical-alerts'
+        - match:
+            severity: warning
+          receiver: 'warning-alerts'
+      
+      receivers:
+      - name: 'web.hook'
+        webhook_configs:
+        - url: 'http://localhost:5001/'
+      
+      - name: 'critical-alerts'
+        webhook_configs:
+        - url: 'http://localhost:5001/critical'
+          send_resolved: true
+        # Add Slack/PagerDuty here in production
+        
+      - name: 'warning-alerts'
+        webhook_configs:
+        - url: 'http://localhost:5001/warning'
+          send_resolved: true
+
+# Grafana Configuration
+grafana:
+  enabled: true
+  
+  # Admin credentials
+  adminPassword: "DevOpsD0j0!2024"
+  
+  # Persistence
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: gp3
+    size: 10Gi
+    accessModes:
+    - ReadWriteOnce
+  
+  # Resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Environment variables
+  env:
+    GF_SECURITY_ADMIN_PASSWORD: "DevOpsD0j0!2024"
+    GF_USERS_ALLOW_SIGN_UP: "false"
+    GF_INSTALL_PLUGINS: "grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel"
+  
+  # Grafana configuration
+  grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s/grafana/"
+      serve_from_sub_path: true
+    
+    security:
+      admin_user: admin
+      admin_password: "DevOpsD0j0!2024"
+      disable_gravatar: true
+    
+    users:
+      allow_sign_up: false
+      auto_assign_org: true
+      auto_assign_org_role: Viewer
+    
+    auth.anonymous:
+      enabled: false
+    
+    log:
+      mode: console
+      level: info
+  
+  # Sidecar configuration for dynamic dashboards and datasources
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folder: /tmp/dashboards
+      provider:
+        name: sidecarProvider
+        orgid: 1
+        folder: 'DevOps Dojo'
+        type: file
+        disableDeletion: false
+        allowUiUpdates: true
+        foldersFromFilesStructure: true
+    
+    datasources:
+      enabled: true
+      label: grafana_datasource
+      labelValue: "1"
+      searchNamespace: ALL
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+  
+  # Initial datasources
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        url: http://prometheus-kube-prometheus-prometheus:9090
+        access: proxy
+        isDefault: true
+        jsonData:
+          timeInterval: 30s
+          queryTimeout: 60s
+          httpMethod: POST
+        editable: true
+      
+      - name: Loki
+        type: loki
+        uid: loki
+        url: http://loki-gateway:80
+        access: proxy
+        jsonData:
+          derivedFields:
+          - datasourceUid: prometheus
+            matcherRegex: "traceID=(\\w+)"
+            name: TraceID
+            url: "$${__value.raw}"
+          maxLines: 1000
+        editable: true
+
+# Node Exporter - collects host-level metrics
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 30Mi
+    limits:
+      cpu: 200m
+      memory: 100Mi
+  
+  hostNetwork: false
+  hostPID: false
+  
+  # Security context
+  securityContext:
+    fsGroup: 65534
+    runAsGroup: 65534
+    runAsNonRoot: true
+    runAsUser: 65534
+
+# Kube State Metrics - collects Kubernetes object metrics
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  
+  # Collect metrics for specific resources
+  collectors:
+  - certificatesigningrequests
+  - configmaps
+  - cronjobs
+  - daemonsets
+  - deployments
+  - endpoints
+  - horizontalpodautoscalers
+  - ingresses
+  - jobs
+  - limitranges
+  - mutatingwebhookconfigurations
+  - namespaces
+  - networkpolicies
+  - nodes
+  - persistentvolumeclaims
+  - persistentvolumes
+  - poddisruptionbudgets
+  - pods
+  - replicasets
+  - replicationcontrollers
+  - resourcequotas
+  - secrets
+  - services
+  - statefulsets
+  - storageclasses
+  - validatingwebhookconfigurations
+  - volumeattachments
+
+# Disable components we don't need
+kubeApiServer:
+  enabled: true
+
+kubelet:
+  enabled: true
+
+kubeControllerManager:
+  enabled: false  # Not accessible in EKS
+
+kubeEtcd:
+  enabled: false  # Not accessible in EKS
+
+kubeScheduler:
+  enabled: false  # Not accessible in EKS
+
+kubeProxy:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+prometheusOperator:
+  enabled: true
+  
+  # Operator resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 100Mi
+    limits:
+      cpu: 200m
+      memory: 200Mi
+  
+  # Security context
+  securityContext:
+    fsGroup: 65534
+    runAsGroup: 65534
+    runAsNonRoot: true
+    runAsUser: 65534
+
+# Default rules - we'll customize these
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: false  # Not applicable for EKS
+    configReloaders: true
+    general: true
+    k8s: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubelet: true
+    kubeProxy: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeScheduler: false  # Not applicable for EKS
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
+
+# Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []

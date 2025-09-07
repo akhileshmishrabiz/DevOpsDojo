@@ -1,0 +1,356 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "3-Tier Application - Comprehensive Metrics",
+    "tags": ["application", "3-tier", "monitoring"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "schemaVersion": 30,
+    "version": 1,
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "🚀 Request Rate (RPS)",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total[5m]))",
+            "legendFormat": "Total RPS"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "decimals": 1,
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 50},
+                {"color": "red", "value": 100}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "❌ Error Rate (%)",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
+            "legendFormat": "Error Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 2,
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "⏱️ Response Time (P95)",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "P95 Latency"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "decimals": 0,
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 500},
+                {"color": "red", "value": 1000}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "🖥️ Active Pods",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "count(up{job=~\"backend|frontend\"} == 1)",
+            "legendFormat": "Running Pods"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 0,
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "green", "value": 2}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "📊 Request Rate by Service",
+        "type": "timeseries",
+        "gridPos": {"h": 9, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total[5m])) by (job)",
+            "legendFormat": "{{job}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "fillOpacity": 10
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "⏱️ Response Time Distribution",
+        "type": "timeseries",
+        "gridPos": {"h": 9, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (job, le)) * 1000",
+            "legendFormat": "{{job}} P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (job, le)) * 1000",
+            "legendFormat": "{{job}} P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (job, le)) * 1000",
+            "legendFormat": "{{job}} P99"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "🧠 Memory Usage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 17},
+        "targets": [
+          {
+            "expr": "sum(container_memory_working_set_bytes{namespace=\"3-tier-app-eks\", container!=\"POD\"}) by (pod) / 1024 / 1024",
+            "legendFormat": "{{pod}} MB"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "decbytes"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "⚡ CPU Usage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 17},
+        "targets": [
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"3-tier-app-eks\", container!=\"POD\"}[5m])) by (pod) * 1000",
+            "legendFormat": "{{pod}} millicores"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "🗄️ Database Connections",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 25},
+        "targets": [
+          {
+            "expr": "pg_stat_database_numbackends",
+            "legendFormat": "Active Connections"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "💾 Database Size",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 25},
+        "targets": [
+          {
+            "expr": "pg_database_size_bytes / 1024 / 1024",
+            "legendFormat": "DB Size MB"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "decbytes"
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "👥 Business Metrics - User Actions",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 25},
+        "targets": [
+          {
+            "expr": "increase(user_registrations_total[1h])",
+            "legendFormat": "Registrations/hr"
+          },
+          {
+            "expr": "increase(user_logins_total[1h])",
+            "legendFormat": "Logins/hr"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "💰 Revenue",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 25},
+        "targets": [
+          {
+            "expr": "increase(revenue_total_dollars[24h])",
+            "legendFormat": "Revenue/day"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD"
+          }
+        }
+      },
+      {
+        "id": 13,
+        "title": "🚨 Error Types",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 29},
+        "targets": [
+          {
+            "expr": "sum(increase(app_errors_total[1h])) by (error_type)",
+            "legendFormat": "{{error_type}}"
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "📈 HTTP Status Codes",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 29},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total[5m])) by (status_code)",
+            "legendFormat": "{{status_code}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "custom": {
+              "stacking": {
+                "mode": "normal"
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": 15,
+        "title": "🌐 Frontend Metrics - Page Load Times",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 37},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(frontend_page_load_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95 Page Load Time"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "id": 16,
+        "title": "🖱️ User Interactions",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 37},
+        "targets": [
+          {
+            "expr": "increase(frontend_button_clicks_total[1h])",
+            "legendFormat": "Clicks/hour"
+          },
+          {
+            "expr": "increase(frontend_page_views_total[1h])",
+            "legendFormat": "Page Views/hour"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      }
+    ]
+  }
+}

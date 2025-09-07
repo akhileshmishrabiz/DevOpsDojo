@@ -1,0 +1,212 @@
+# ServiceMonitors for 3-Tier Application
+# These tell Prometheus where to scrape metrics from
+
+---
+# Frontend ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: frontend-metrics
+  namespace: 3-tier-app-eks
+  labels:
+    app: frontend
+    tier: frontend
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    honorLabels: false
+    relabelings:
+    # Add service label
+    - sourceLabels: [__meta_kubernetes_service_name]
+      targetLabel: service
+    # Add namespace label
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: namespace
+    # Add tier label
+    - targetLabel: tier
+      replacement: frontend
+  namespaceSelector:
+    matchNames:
+    - 3-tier-app-eks
+
+---
+# Backend ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-metrics
+  namespace: 3-tier-app-eks
+  labels:
+    app: backend
+    tier: backend
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    honorLabels: false
+    relabelings:
+    # Add service label
+    - sourceLabels: [__meta_kubernetes_service_name]
+      targetLabel: service
+    # Add namespace label
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: namespace
+    # Add tier label
+    - targetLabel: tier
+      replacement: backend
+    # Custom relabeling for backend-specific metrics
+    - sourceLabels: [__address__]
+      targetLabel: __address__
+      regex: (.+)
+      replacement: ${1}
+  namespaceSelector:
+    matchNames:
+    - 3-tier-app-eks
+
+---
+# PostgreSQL Exporter ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postgres-metrics
+  namespace: 3-tier-app-eks
+  labels:
+    app: postgres-exporter
+    tier: database
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: postgres-exporter
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 15s
+    honorLabels: false
+    relabelings:
+    # Add service label
+    - sourceLabels: [__meta_kubernetes_service_name]
+      targetLabel: service
+    # Add namespace label
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: namespace
+    # Add tier label
+    - targetLabel: tier
+      replacement: database
+    # Add database name label
+    - targetLabel: database
+      replacement: postgresql
+  namespaceSelector:
+    matchNames:
+    - 3-tier-app-eks
+
+---
+# PodMonitor for additional pod-level metrics
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: application-pods
+  namespace: 3-tier-app-eks
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      monitoring: enabled
+  podMetricsEndpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    relabelings:
+    # Add pod name
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: pod
+    # Add container name
+    - sourceLabels: [__meta_kubernetes_pod_container_name]
+      targetLabel: container
+    # Add app label
+    - sourceLabels: [__meta_kubernetes_pod_label_app]
+      targetLabel: app
+  namespaceSelector:
+    matchNames:
+    - 3-tier-app-eks
+
+---
+# ServiceMonitor for Kubernetes system metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kubernetes-system
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      k8s-app: kubelet
+  endpoints:
+  - port: https-metrics
+    scheme: https
+    path: /metrics
+    interval: 30s
+    bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tlsConfig:
+      caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      insecureSkipVerify: true
+  - port: https-metrics
+    scheme: https
+    path: /metrics/cadvisor
+    interval: 30s
+    bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tlsConfig:
+      caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      insecureSkipVerify: true
+  - port: https-metrics
+    scheme: https
+    path: /metrics/probes
+    interval: 30s
+    bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tlsConfig:
+      caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      insecureSkipVerify: true
+  namespaceSelector:
+    matchNames:
+    - kube-system
+
+---
+# ServiceMonitor for Ingress Controller (if using nginx-ingress)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nginx-ingress
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+  endpoints:
+  - port: prometheus
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+    - ingress-nginx
+    - kube-system

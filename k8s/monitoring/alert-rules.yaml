@@ -1,0 +1,409 @@
+# Production Alert Rules for 3-Tier Application
+# Based on SLI/SLO methodology and production best practices
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: application-alerts
+  namespace: 3-tier-app-eks
+  labels:
+    app: monitoring
+    release: prometheus
+spec:
+  groups:
+  
+  # Application Availability Alerts
+  - name: application.availability
+    interval: 30s
+    rules:
+    
+    # High Error Rate (Critical)
+    - alert: HighErrorRate
+      expr: |
+        (
+          sum(rate(http_requests_total{job=~"backend|frontend",status=~"5.."}[5m])) by (job)
+          /
+          sum(rate(http_requests_total{job=~"backend|frontend"}[5m])) by (job)
+        ) > 0.01
+      for: 5m
+      labels:
+        severity: critical
+        team: platform
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "High error rate detected in {{ $labels.job }}"
+        description: |
+          {{ $labels.job }} service has an error rate of {{ $value | humanizePercentage }} 
+          which is above the 1% threshold for 5 minutes.
+        runbook: "https://wiki.company.com/runbooks/high-error-rate"
+        grafana: "http://grafana.monitoring.svc.cluster.local/d/application-overview"
+    
+    # Application Down (Critical)
+    - alert: ApplicationDown
+      expr: up{job=~"backend|frontend"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        team: platform
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "{{ $labels.job }} service is down"
+        description: |
+          {{ $labels.job }} service has been down for more than 2 minutes.
+          Instance: {{ $labels.instance }}
+        runbook: "https://wiki.company.com/runbooks/service-down"
+    
+    # High Response Time (Warning)
+    - alert: HighResponseTime
+      expr: |
+        histogram_quantile(0.95,
+          sum(rate(http_request_duration_seconds_bucket{job=~"backend|frontend"}[5m])) by (job, le)
+        ) > 1
+      for: 10m
+      labels:
+        severity: warning
+        team: platform
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "High response time in {{ $labels.job }}"
+        description: |
+          {{ $labels.job }} has P95 response time of {{ $value }}s 
+          which is above 1s threshold for 10 minutes.
+        runbook: "https://wiki.company.com/runbooks/high-latency"
+  
+  # Infrastructure Alerts
+  - name: infrastructure.alerts
+    interval: 30s
+    rules:
+    
+    # Pod Crash Looping (Critical)
+    - alert: PodCrashLooping
+      expr: |
+        rate(kube_pod_container_status_restarts_total{namespace="3-tier-app-eks"}[5m]) > 0
+      for: 5m
+      labels:
+        severity: critical
+        team: platform
+      annotations:
+        summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+        description: |
+          Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} 
+          has restarted {{ $value }} times in the last 5 minutes.
+        runbook: "https://wiki.company.com/runbooks/pod-crash-loop"
+    
+    # High Memory Usage (Warning)
+    - alert: HighMemoryUsage
+      expr: |
+        (
+          container_memory_working_set_bytes{namespace="3-tier-app-eks",container!="",container!="POD"}
+          /
+          container_spec_memory_limit_bytes{namespace="3-tier-app-eks",container!="",container!="POD"}
+        ) > 0.8
+      for: 10m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "High memory usage in {{ $labels.pod }}"
+        description: |
+          Container {{ $labels.container }} in pod {{ $labels.pod }} 
+          is using {{ $value | humanizePercentage }} of its memory limit.
+        runbook: "https://wiki.company.com/runbooks/high-memory-usage"
+    
+    # High CPU Usage (Warning)
+    - alert: HighCPUUsage
+      expr: |
+        (
+          rate(container_cpu_usage_seconds_total{namespace="3-tier-app-eks",container!="",container!="POD"}[5m])
+        ) > 0.8
+      for: 15m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "High CPU usage in {{ $labels.pod }}"
+        description: |
+          Container {{ $labels.container }} in pod {{ $labels.pod }} 
+          has CPU usage of {{ $value | humanizePercentage }} for 15 minutes.
+        runbook: "https://wiki.company.com/runbooks/high-cpu-usage"
+    
+    # Pod Not Ready (Warning)
+    - alert: PodNotReady
+      expr: |
+        kube_pod_status_ready{condition="false",namespace="3-tier-app-eks"} == 1
+      for: 5m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} not ready"
+        description: |
+          Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} 
+          has been in a non-ready state for more than 5 minutes.
+        runbook: "https://wiki.company.com/runbooks/pod-not-ready"
+
+  # Database Alerts
+  - name: database.alerts
+    interval: 30s
+    rules:
+    
+    # Database Down (Critical)
+    - alert: DatabaseDown
+      expr: up{job="postgres-exporter"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        team: platform
+        service: postgres
+      annotations:
+        summary: "PostgreSQL database is down"
+        description: |
+          PostgreSQL database has been unreachable for more than 2 minutes.
+        runbook: "https://wiki.company.com/runbooks/database-down"
+    
+    # High Database Connections (Warning)
+    - alert: HighDatabaseConnections
+      expr: |
+        (
+          pg_stat_database_numbackends{datname!~"template.*|postgres"}
+          /
+          pg_settings_max_connections
+        ) > 0.8
+      for: 10m
+      labels:
+        severity: warning
+        team: platform
+        service: postgres
+      annotations:
+        summary: "High database connection usage"
+        description: |
+          Database {{ $labels.datname }} is using {{ $value | humanizePercentage }} 
+          of available connections.
+        runbook: "https://wiki.company.com/runbooks/high-db-connections"
+    
+    # Slow Database Queries (Warning)
+    - alert: SlowDatabaseQueries
+      expr: |
+        pg_stat_statements_mean_exec_time_seconds{datname!~"template.*|postgres"} > 1
+      for: 5m
+      labels:
+        severity: warning
+        team: platform
+        service: postgres
+      annotations:
+        summary: "Slow database queries detected"
+        description: |
+          Average query execution time is {{ $value }}s in database {{ $labels.datname }}.
+        runbook: "https://wiki.company.com/runbooks/slow-queries"
+    
+    # Database Disk Usage (Warning)
+    - alert: DatabaseDiskUsage
+      expr: |
+        (
+          pg_database_size_bytes{datname!~"template.*|postgres"}
+          /
+          (1024*1024*1024)
+        ) > 10
+      for: 5m
+      labels:
+        severity: warning
+        team: platform
+        service: postgres
+      annotations:
+        summary: "Database disk usage is high"
+        description: |
+          Database {{ $labels.datname }} size is {{ $value }}GB.
+        runbook: "https://wiki.company.com/runbooks/database-disk-usage"
+
+---
+# Node-level alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: node-alerts
+  namespace: monitoring
+  labels:
+    app: monitoring
+    release: prometheus
+spec:
+  groups:
+  
+  - name: node.alerts
+    interval: 30s
+    rules:
+    
+    # Node Down (Critical)
+    - alert: NodeDown
+      expr: up{job="node-exporter"} == 0
+      for: 5m
+      labels:
+        severity: critical
+        team: infrastructure
+      annotations:
+        summary: "Node {{ $labels.instance }} is down"
+        description: |
+          Node {{ $labels.instance }} has been down for more than 5 minutes.
+        runbook: "https://wiki.company.com/runbooks/node-down"
+    
+    # High Node CPU (Warning)
+    - alert: HighNodeCPU
+      expr: |
+        (
+          1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) by (instance)
+        ) > 0.8
+      for: 15m
+      labels:
+        severity: warning
+        team: infrastructure
+      annotations:
+        summary: "High CPU usage on node {{ $labels.instance }}"
+        description: |
+          Node {{ $labels.instance }} has CPU usage of {{ $value | humanizePercentage }} 
+          for more than 15 minutes.
+        runbook: "https://wiki.company.com/runbooks/high-node-cpu"
+    
+    # High Node Memory (Warning)
+    - alert: HighNodeMemory
+      expr: |
+        (
+          1 - (
+            node_memory_MemAvailable_bytes
+            /
+            node_memory_MemTotal_bytes
+          )
+        ) > 0.9
+      for: 10m
+      labels:
+        severity: warning
+        team: infrastructure
+      annotations:
+        summary: "High memory usage on node {{ $labels.instance }}"
+        description: |
+          Node {{ $labels.instance }} has memory usage of {{ $value | humanizePercentage }}.
+        runbook: "https://wiki.company.com/runbooks/high-node-memory"
+    
+    # Low Node Disk Space (Warning)
+    - alert: LowNodeDiskSpace
+      expr: |
+        (
+          node_filesystem_avail_bytes{mountpoint="/"}
+          /
+          node_filesystem_size_bytes{mountpoint="/"}
+        ) < 0.15
+      for: 10m
+      labels:
+        severity: warning
+        team: infrastructure
+      annotations:
+        summary: "Low disk space on node {{ $labels.instance }}"
+        description: |
+          Node {{ $labels.instance }} has only {{ $value | humanizePercentage }} 
+          disk space remaining on root filesystem.
+        runbook: "https://wiki.company.com/runbooks/low-disk-space"
+
+---
+# SLO-based alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: slo-alerts
+  namespace: 3-tier-app-eks
+  labels:
+    app: monitoring
+    release: prometheus
+spec:
+  groups:
+  
+  - name: slo.alerts
+    interval: 30s
+    rules:
+    
+    # Error Budget Exhaustion (Critical)
+    - alert: ErrorBudgetExhaustion
+      expr: |
+        (
+          1 - (
+            sum(rate(http_requests_total{job=~"backend|frontend",status!~"5.."}[30d]))
+            /
+            sum(rate(http_requests_total{job=~"backend|frontend"}[30d]))
+          )
+        ) / (1 - 0.999) > 0.8
+      for: 5m
+      labels:
+        severity: critical
+        team: platform
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "Error budget nearly exhausted for {{ $labels.job }}"
+        description: |
+          {{ $labels.job }} has consumed {{ $value | humanizePercentage }} 
+          of its error budget over the last 30 days.
+        runbook: "https://wiki.company.com/runbooks/error-budget-exhaustion"
+    
+    # SLO Violation (Warning)
+    - alert: SLOViolation
+      expr: |
+        (
+          sum(rate(http_requests_total{job=~"backend|frontend",status!~"5.."}[5m])) by (job)
+          /
+          sum(rate(http_requests_total{job=~"backend|frontend"}[5m])) by (job)
+        ) < 0.995
+      for: 10m
+      labels:
+        severity: warning
+        team: platform
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "SLO violation in {{ $labels.job }}"
+        description: |
+          {{ $labels.job }} availability is {{ $value | humanizePercentage }} 
+          which is below the 99.5% SLO threshold.
+        runbook: "https://wiki.company.com/runbooks/slo-violation"
+
+---
+# Business Logic Alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: business-alerts
+  namespace: 3-tier-app-eks
+  labels:
+    app: monitoring
+    release: prometheus
+spec:
+  groups:
+  
+  - name: business.alerts
+    interval: 60s
+    rules:
+    
+    # Low Traffic (Warning)
+    - alert: LowTraffic
+      expr: |
+        sum(rate(http_requests_total{job=~"backend|frontend"}[5m])) < 1
+      for: 10m
+      labels:
+        severity: warning
+        team: business
+      annotations:
+        summary: "Unusually low traffic detected"
+        description: |
+          Total request rate is {{ $value | humanize }} req/sec 
+          which is below normal levels.
+        runbook: "https://wiki.company.com/runbooks/low-traffic"
+    
+    # High Traffic (Info)
+    - alert: HighTraffic
+      expr: |
+        sum(rate(http_requests_total{job=~"backend|frontend"}[5m])) > 100
+      for: 5m
+      labels:
+        severity: info
+        team: business
+      annotations:
+        summary: "High traffic detected"
+        description: |
+          Total request rate is {{ $value | humanize }} req/sec 
+          which is higher than usual.
+        runbook: "https://wiki.company.com/runbooks/high-traffic"

@@ -1,0 +1,287 @@
+# Monitoring Ingress Configuration
+# Provides external access to monitoring services
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-ingress
+  namespace: monitoring
+  annotations:
+    # Use your ingress controller class
+    kubernetes.io/ingress.class: nginx
+    # Enable SSL redirect
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Enable CORS for Grafana
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    # Increase proxy timeout for long-running queries
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # Authentication (optional - remove if not using auth)
+    # nginx.ingress.kubernetes.io/auth-type: basic
+    # nginx.ingress.kubernetes.io/auth-secret: monitoring-basic-auth
+    # nginx.ingress.kubernetes.io/auth-realm: 'Authentication Required - DevOps Monitoring'
+    # Rate limiting
+    nginx.ingress.kubernetes.io/rate-limit-rps: "10"
+    nginx.ingress.kubernetes.io/rate-limit-connections: "5"
+  labels:
+    app: monitoring
+    component: ingress
+spec:
+  # TLS configuration (uncomment and configure for HTTPS)
+  # tls:
+  # - hosts:
+  #   - monitoring.akhileshmishra.tech
+  #   secretName: monitoring-tls
+  rules:
+  - host: monitoring.akhileshmishra.tech  # Update this to your domain
+    http:
+      paths:
+      # Grafana
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-grafana
+            port:
+              number: 80
+      
+      # Prometheus
+      - path: /prometheus
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-kube-prometheus-prometheus
+            port:
+              number: 9090
+      
+      # AlertManager
+      - path: /alertmanager
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-kube-prometheus-alertmanager
+            port:
+              number: 9093
+      
+      # Loki (for direct API access)
+      - path: /loki
+        pathType: Prefix
+        backend:
+          service:
+            name: loki-gateway
+            port:
+              number: 80
+
+---
+# Alternative: Separate ingresses for each service
+# Use this approach if you want more granular control
+
+# Grafana Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: monitoring
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Grafana specific settings
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Forwarded-Proto: https";
+      more_set_headers "X-Forwarded-For: $proxy_add_x_forwarded_for";
+  labels:
+    app: grafana
+    component: ingress
+spec:
+  # tls:
+  # - hosts:
+  #   - grafana.akhileshmishra.tech
+  #   secretName: grafana-tls
+  rules:
+  - host: grafana.akhileshmishra.tech  # Update this to your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-grafana
+            port:
+              number: 80
+
+---
+# Prometheus Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus-ingress
+  namespace: monitoring
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Prometheus specific settings
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: prometheus-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: 'Authentication Required - Prometheus'
+  labels:
+    app: prometheus
+    component: ingress
+spec:
+  # tls:
+  # - hosts:
+  #   - prometheus.akhileshmishra.tech
+  #   secretName: prometheus-tls
+  rules:
+  - host: prometheus.akhileshmishra.tech  # Update this to your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-kube-prometheus-prometheus
+            port:
+              number: 9090
+
+---
+# Basic Auth Secret for Prometheus (optional)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-basic-auth
+  namespace: monitoring
+type: Opaque
+data:
+  # Generated with: htpasswd -nb admin 'your-secure-password' | base64
+  # Default: admin:admin123 (change in production!)
+  auth: YWRtaW46JDJ5JDEwJHpQUzNub3dYWmQ4cXNINkJGdE1udU9ScHNNODJTVVVqVmVpODhTVWVKMm9WZDNnZGVFdjAuCgo=
+
+---
+# Service for external load balancer (if using cloud provider)
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-loadbalancer
+  namespace: monitoring
+  annotations:
+    # AWS Load Balancer annotations (adjust for your cloud provider)
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+    # SSL certificate ARN (optional)
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:region:account-id:certificate/cert-id"
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+  labels:
+    app: monitoring
+    component: loadbalancer
+spec:
+  type: LoadBalancer  # Change to ClusterIP if using Ingress Controller
+  ports:
+  - name: grafana
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+  - name: prometheus
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  - name: alertmanager
+    port: 9093
+    targetPort: 9093
+    protocol: TCP
+  selector:
+    # This selector won't match anything - it's just a placeholder
+    # Remove this service if using Ingress
+    app: placeholder
+
+---
+# Network Policy for monitoring namespace (optional security layer)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-network-policy
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow ingress from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 3000  # Grafana
+    - protocol: TCP
+      port: 9090  # Prometheus
+    - protocol: TCP
+      port: 9093  # AlertManager
+    - protocol: TCP
+      port: 3100  # Loki
+  
+  # Allow inter-monitoring communication
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+  
+  # Allow scraping from application namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: 3-tier-app-eks
+    ports:
+    - protocol: TCP
+      port: 9090
+  
+  egress:
+  # Allow DNS
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  
+  # Allow HTTPS for alerting
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  
+  # Allow HTTP for webhooks
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 80
+  
+  # Allow scraping application pods
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: 3-tier-app-eks
+    ports:
+    - protocol: TCP
+
+---
+# Certificate for TLS (if using cert-manager)
+# apiVersion: cert-manager.io/v1
+# kind: Certificate
+# metadata:
+#   name: monitoring-cert
+#   namespace: monitoring
+# spec:
+#   secretName: monitoring-tls
+#   issuerRef:
+#     name: letsencrypt-prod
+#     kind: ClusterIssuer
+#   dnsNames:
+#   - monitoring.akhileshmishra.tech
+#   - grafana.akhileshmishra.tech
+#   - prometheus.akhileshmishra.tech

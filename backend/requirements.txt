@@ -1,9 +1,33 @@
-Flask==2.2.5
-Flask-CORS==4.0.0
-Flask-SQLAlchemy==3.0.2
-Flask-Migrate==4.0.4
-psycopg2-binary==2.9.5
+# Backend Dependencies with Metrics Support
+
+# Web Framework
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# Metrics
+prometheus-client==0.17.1
+psutil==5.9.5
+
+# Database (example - adjust for your database)
+psycopg2-binary==2.9.7  # For PostgreSQL
+SQLAlchemy==2.0.21      # If using SQLAlchemy
+
+# HTTP Client (if needed)
+requests==2.31.0
+
+# JSON handling
+jsonschema==4.19.1
+
+# Environment variables
 python-dotenv==1.0.0
-sqlalchemy==1.4.46
-gunicorn==21.2.0
-python-slugify==8.0.1
+
+# Logging (optional - for structured logging)
+structlog==23.1.0
+
+# Testing (optional)
+pytest==7.4.2
+pytest-flask==1.2.0
+
+# Development tools (optional)
+black==23.7.0
+flake8==6.0.0

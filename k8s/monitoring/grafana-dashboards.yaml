@@ -1,0 +1,566 @@
+# Grafana Dashboards for 3-Tier Application
+# These will be automatically imported into Grafana
+
+---
+# Application Overview Dashboard
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-application-overview
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  application-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "3-Tier Application Overview",
+        "tags": ["application", "overview"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "30s",
+        "schemaVersion": 27,
+        "version": 1,
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "Request Rate",
+            "type": "stat",
+            "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{namespace=\"3-tier-app-eks\"}[5m]))",
+                "legendFormat": "RPS",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "reqps",
+                "decimals": 1
+              }
+            },
+            "options": {
+              "colorMode": "value"
+            }
+          },
+          {
+            "id": 2,
+            "title": "Error Rate",
+            "type": "stat",
+            "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{namespace=\"3-tier-app-eks\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{namespace=\"3-tier-app-eks\"}[5m])) * 100",
+                "legendFormat": "Error %",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "decimals": 2,
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 1},
+                    {"color": "red", "value": 5}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "id": 3,
+            "title": "P95 Response Time",
+            "type": "stat",
+            "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"3-tier-app-eks\"}[5m])) by (le))",
+                "legendFormat": "P95",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "s",
+                "decimals": 3,
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 0.5},
+                    {"color": "red", "value": 1}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "id": 4,
+            "title": "Active Pods",
+            "type": "stat",
+            "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+            "targets": [
+              {
+                "expr": "count(kube_pod_info{namespace=\"3-tier-app-eks\",created_by_kind=\"ReplicaSet\"})",
+                "legendFormat": "Pods",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "short",
+                "decimals": 0
+              }
+            }
+          },
+          {
+            "id": 5,
+            "title": "Request Rate by Service",
+            "type": "graph",
+            "gridPos": {"h": 9, "w": 12, "x": 0, "y": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{namespace=\"3-tier-app-eks\"}[5m])) by (job)",
+                "legendFormat": "{{ job }}",
+                "refId": "A"
+              }
+            ],
+            "xAxis": {"show": true},
+            "yAxes": [
+              {"label": "requests/sec", "show": true}
+            ],
+            "legend": {"show": true, "values": false, "min": false, "max": false, "current": false, "total": false, "avg": false}
+          },
+          {
+            "id": 6,
+            "title": "Response Time Distribution",
+            "type": "graph",
+            "gridPos": {"h": 9, "w": 12, "x": 12, "y": 8},
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{namespace=\"3-tier-app-eks\"}[5m])) by (job, le))",
+                "legendFormat": "{{ job }} P50",
+                "refId": "A"
+              },
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"3-tier-app-eks\"}[5m])) by (job, le))",
+                "legendFormat": "{{ job }} P95",
+                "refId": "B"
+              },
+              {
+                "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"3-tier-app-eks\"}[5m])) by (job, le))",
+                "legendFormat": "{{ job }} P99",
+                "refId": "C"
+              }
+            ],
+            "yAxes": [
+              {"label": "seconds", "show": true}
+            ]
+          }
+        ]
+      }
+    }
+
+---
+# Infrastructure Dashboard
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-infrastructure
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  infrastructure.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Infrastructure Overview",
+        "tags": ["infrastructure", "kubernetes"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "30s",
+        "schemaVersion": 27,
+        "version": 1,
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "Pod Memory Usage",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+            "targets": [
+              {
+                "expr": "sum(container_memory_working_set_bytes{namespace=\"3-tier-app-eks\",container!=\"POD\",container!=\"\"}) by (pod) / 1024 / 1024",
+                "legendFormat": "{{ pod }}",
+                "refId": "A"
+              }
+            ],
+            "yAxes": [
+              {"label": "MB", "show": true}
+            ]
+          },
+          {
+            "id": 2,
+            "title": "Pod CPU Usage",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+            "targets": [
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"3-tier-app-eks\",container!=\"POD\",container!=\"\"}[5m])) by (pod) * 1000",
+                "legendFormat": "{{ pod }}",
+                "refId": "A"
+              }
+            ],
+            "yAxes": [
+              {"label": "millicores", "show": true}
+            ]
+          },
+          {
+            "id": 3,
+            "title": "Pod Restart Count",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 24, "x": 0, "y": 8},
+            "targets": [
+              {
+                "expr": "sum(kube_pod_container_status_restarts_total{namespace=\"3-tier-app-eks\"}) by (pod)",
+                "legendFormat": "{{ pod }}",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "short"
+              }
+            }
+          },
+          {
+            "id": 4,
+            "title": "Node Resource Usage",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+            "targets": [
+              {
+                "expr": "(1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) by (instance)) * 100",
+                "legendFormat": "CPU % - {{ instance }}",
+                "refId": "A"
+              },
+              {
+                "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+                "legendFormat": "Memory % - {{ instance }}",
+                "refId": "B"
+              }
+            ],
+            "yAxes": [
+              {"label": "percent", "show": true}
+            ]
+          },
+          {
+            "id": 5,
+            "title": "Network I/O",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+            "targets": [
+              {
+                "expr": "sum(rate(container_network_receive_bytes_total{namespace=\"3-tier-app-eks\"}[5m])) by (pod) / 1024",
+                "legendFormat": "{{ pod }} RX KB/s",
+                "refId": "A"
+              },
+              {
+                "expr": "sum(rate(container_network_transmit_bytes_total{namespace=\"3-tier-app-eks\"}[5m])) by (pod) / 1024",
+                "legendFormat": "{{ pod }} TX KB/s",
+                "refId": "B"
+              }
+            ],
+            "yAxes": [
+              {"label": "KB/s", "show": true}
+            ]
+          }
+        ]
+      }
+    }
+
+---
+# Database Dashboard
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-database
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  database.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "PostgreSQL Database",
+        "tags": ["database", "postgresql"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "30s",
+        "schemaVersion": 27,
+        "version": 1,
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "Database Status",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+            "targets": [
+              {
+                "expr": "pg_up",
+                "legendFormat": "Status",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "mappings": [
+                  {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
+                  {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}
+                ]
+              }
+            }
+          },
+          {
+            "id": 2,
+            "title": "Active Connections",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+            "targets": [
+              {
+                "expr": "pg_stat_database_numbackends{datname!~\"template.*\"}",
+                "legendFormat": "{{ datname }}",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "title": "Database Size",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+            "targets": [
+              {
+                "expr": "pg_database_size_bytes{datname!~\"template.*\"} / 1024 / 1024",
+                "legendFormat": "{{ datname }} MB",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 4,
+            "title": "TPS (Transactions/sec)",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+            "targets": [
+              {
+                "expr": "sum(rate(pg_stat_database_xact_commit{datname!~\"template.*\"}[5m]) + rate(pg_stat_database_xact_rollback{datname!~\"template.*\"}[5m]))",
+                "legendFormat": "TPS",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 5,
+            "title": "Connection Usage Over Time",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+            "targets": [
+              {
+                "expr": "pg_stat_database_numbackends{datname!~\"template.*\"}",
+                "legendFormat": "{{ datname }}",
+                "refId": "A"
+              },
+              {
+                "expr": "pg_settings_max_connections",
+                "legendFormat": "Max Connections",
+                "refId": "B"
+              }
+            ],
+            "yAxes": [
+              {"label": "connections", "show": true}
+            ]
+          },
+          {
+            "id": 6,
+            "title": "Query Performance",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+            "targets": [
+              {
+                "expr": "rate(pg_stat_statements_calls[5m])",
+                "legendFormat": "Queries/sec",
+                "refId": "A"
+              },
+              {
+                "expr": "pg_stat_statements_mean_exec_time_seconds",
+                "legendFormat": "Avg Query Time (s)",
+                "refId": "B"
+              }
+            ]
+          },
+          {
+            "id": 7,
+            "title": "Cache Hit Ratio",
+            "type": "graph",
+            "gridPos": {"h": 6, "w": 24, "x": 0, "y": 12},
+            "targets": [
+              {
+                "expr": "pg_stat_database_blks_hit{datname!~\"template.*\"} / (pg_stat_database_blks_hit{datname!~\"template.*\"} + pg_stat_database_blks_read{datname!~\"template.*\"}) * 100",
+                "legendFormat": "{{ datname }} Cache Hit %",
+                "refId": "A"
+              }
+            ],
+            "yAxes": [
+              {"label": "percent", "show": true, "min": 0, "max": 100}
+            ]
+          }
+        ]
+      }
+    }
+
+---
+# SLO Dashboard
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-slo
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  slo.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "SLO Monitoring",
+        "tags": ["slo", "sli", "reliability"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "1m",
+        "schemaVersion": 27,
+        "version": 1,
+        "time": {
+          "from": "now-7d",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "Availability SLO (99.9%)",
+            "type": "stat",
+            "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+            "targets": [
+              {
+                "expr": "(1 - sum(rate(http_requests_total{namespace=\"3-tier-app-eks\",status=~\"5..\"}[7d])) / sum(rate(http_requests_total{namespace=\"3-tier-app-eks\"}[7d]))) * 100",
+                "legendFormat": "Current Availability",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "decimals": 3,
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 99.0},
+                    {"color": "yellow", "value": 99.5},
+                    {"color": "green", "value": 99.9}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "id": 2,
+            "title": "Error Budget Remaining",
+            "type": "gauge",
+            "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+            "targets": [
+              {
+                "expr": "(1 - (sum(rate(http_requests_total{namespace=\"3-tier-app-eks\",status=~\"5..\"}[7d])) / sum(rate(http_requests_total{namespace=\"3-tier-app-eks\"}[7d])))) / (1 - 0.999) * 100",
+                "legendFormat": "Error Budget %",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 0,
+                "max": 100,
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "yellow", "value": 25},
+                    {"color": "green", "value": 50}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "id": 3,
+            "title": "Latency SLO (95% < 500ms)",
+            "type": "stat",
+            "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"3-tier-app-eks\"}[7d])) by (le)) * 1000",
+                "legendFormat": "P95 Latency",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "ms",
+                "decimals": 1,
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 400},
+                    {"color": "red", "value": 500}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "id": 4,
+            "title": "SLO Burn Rate (7d window)",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{namespace=\"3-tier-app-eks\",status=~\"5..\"}[1h])) / sum(rate(http_requests_total{namespace=\"3-tier-app-eks\"}[1h]))",
+                "legendFormat": "1h burn rate",
+                "refId": "A"
+              },
+              {
+                "expr": "sum(rate(http_requests_total{namespace=\"3-tier-app-eks\",status=~\"5..\"}[6h])) / sum(rate(http_requests_total{namespace=\"3-tier-app-eks\"}[6h]))",
+                "legendFormat": "6h burn rate",
+                "refId": "B"
+              }
+            ],
+            "yAxes": [
+              {"label": "error rate", "show": true}
+            ]
+          }
+        ]
+      }
+    }

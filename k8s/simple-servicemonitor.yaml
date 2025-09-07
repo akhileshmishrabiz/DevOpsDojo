@@ -1,0 +1,18 @@
+# Simple ServiceMonitor for Backend Application
+# This tells Prometheus where to find your app metrics
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-metrics
+  namespace: 3-tier-app-eks
+  labels:
+    app: backend
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  endpoints:
+  - port: metrics  # This should match the port name in your service
+    path: /metrics
+    interval: 30s
