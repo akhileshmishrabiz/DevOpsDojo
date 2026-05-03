@@ -1,0 +1,49 @@
+# Development environment values
+# Usage: helm install devopsdojo ./helm/devopsdojo -f ./helm/devopsdojo/values-dev.yaml
+
+global:
+  namespace: devopsdojo-dev
+
+frontend:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "200m"
+
+backend:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  env:
+    flaskDebug: "1"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "300m"
+
+database:
+  external:
+    enabled: true
+    host: "your-dev-db.rds.amazonaws.com"  # Update with your dev DB host
+    port: "5432"
+    name: postgres
+
+secrets:
+  dbUsername: postgres
+  dbPassword: "your-dev-password"  # Update or use --set
+  secretKey: "dev-secret-key"
+
+ingress:
+  enabled: false
+
+migration:
+  enabled: true

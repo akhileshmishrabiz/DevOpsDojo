@@ -1,0 +1,8 @@
+{{- if ne (include "devopsdojo.namespace" .) "default" }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "devopsdojo.namespace" . }}
+  labels:
+    {{- include "devopsdojo.labels" . | nindent 4 }}
+{{- end }}

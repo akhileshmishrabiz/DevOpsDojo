@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: devopsdojo-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # Helm chart from ECR
+    chart: devopsdojo-helm
+    repoURL: <ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com
+    targetRevision: 0.1.0  # Chart version
+
+    helm:
+      releaseName: devopsdojo-dev
+      valueFiles:
+        - values.yaml
+      values: |
+        global:
+          namespace: devopsdojo-dev
+
+        frontend:
+          replicaCount: 1
+          autoscaling:
+            enabled: false
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+
+        backend:
+          replicaCount: 1
+          autoscaling:
+            enabled: false
+          env:
+            flaskDebug: "1"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+
+        database:
+          external:
+            enabled: true
+            host: "your-dev-db.rds.amazonaws.com"  # UPDATE THIS
+            port: "5432"
+            name: postgres
+
+        secrets:
+          dbUsername: postgres
+          dbPassword: ""  # Use sealed-secrets or external-secrets
+          secretKey: ""
+
+        ingress:
+          enabled: false
+
+        migration:
+          enabled: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devopsdojo-dev
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true

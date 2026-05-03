@@ -1,0 +1,145 @@
+# Default values for devopsdojo
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  namespace: devopsdojo
+  imageRegistry: livingdevopswithakhilesh/devopsdozo
+
+# Frontend configuration
+frontend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: livingdevopswithakhilesh/devopsdozo
+    tag: frontend-latest-1
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "300m"
+  healthCheck:
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 5
+  env:
+    backendUrl: ""  # Will be auto-generated if empty
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# Backend configuration
+backend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: livingdevopswithakhilesh/devopsdozo
+    tag: backend-latest-1
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  healthCheck:
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 5
+  env:
+    flaskDebug: "0"
+    allowedOrigins: ""  # Will be auto-generated if empty
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  initContainer:
+    enabled: true
+    image: busybox:1.28
+
+# Database configuration
+database:
+  # Use external database (like RDS)
+  external:
+    enabled: true
+    host: ""  # Required: e.g., your-db.cvik8accw2tk.ap-south-1.rds.amazonaws.com
+    port: "5432"
+    name: postgres
+  # Use in-cluster PostgreSQL (alternative to external)
+  internal:
+    enabled: false
+    image:
+      repository: postgres
+      tag: "14"
+    storage:
+      size: 10Gi
+      storageClass: ""
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+# Secrets - these should be overridden or managed externally
+secrets:
+  dbUsername: postgres
+  dbPassword: ""  # Required: Set via --set or external secret management
+  secretKey: ""   # Required: Flask secret key
+
+# Database migration job
+migration:
+  enabled: true
+  ttlSecondsAfterFinished: 100
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+  hosts:
+    - paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Service Account
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# Network Policy
+networkPolicy:
+  enabled: false
+
+# Extra labels to add to all resources
+commonLabels: {}
+
+# Extra annotations to add to all resources
+commonAnnotations: {}

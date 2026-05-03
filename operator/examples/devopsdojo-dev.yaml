@@ -1,0 +1,47 @@
+apiVersion: apps.devopsdojo.io/v1
+kind: DevOpsDojo
+metadata:
+  name: devopsdojo-dev
+  namespace: devopsdojo-dev
+spec:
+  # Database configuration (PostgreSQL StatefulSet)
+  database:
+    storage: "5Gi"
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Backend configuration
+  backend:
+    replicas: 1
+    image: "livingdevopswithakhilesh/devopsdozo:backend-latest-1"
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "50m"
+      limits:
+        memory: "256Mi"
+        cpu: "300m"
+
+  # Frontend configuration
+  frontend:
+    replicas: 1
+    image: "livingdevopswithakhilesh/devopsdozo:frontend-latest-1"
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "200m"
+
+  # Ingress disabled for dev
+  ingress:
+    enabled: false
+
+  # Optional: reference external secrets
+  # secretsRef: "my-external-secrets"

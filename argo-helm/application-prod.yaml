@@ -1,0 +1,100 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: devopsdojo-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # Helm chart from ECR
+    chart: devopsdojo-helm
+    repoURL: <ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com
+    targetRevision: 0.1.0  # Chart version
+
+    helm:
+      releaseName: devopsdojo-prod
+      valueFiles:
+        - values.yaml
+      values: |
+        global:
+          namespace: devopsdojo-prod
+
+        frontend:
+          replicaCount: 3
+          autoscaling:
+            enabled: true
+            minReplicas: 3
+            maxReplicas: 20
+            targetCPUUtilizationPercentage: 70
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+        backend:
+          replicaCount: 3
+          autoscaling:
+            enabled: true
+            minReplicas: 3
+            maxReplicas: 20
+            targetCPUUtilizationPercentage: 70
+          env:
+            flaskDebug: "0"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+
+        database:
+          external:
+            enabled: true
+            host: "your-prod-db.rds.amazonaws.com"  # UPDATE THIS
+            port: "5432"
+            name: postgres
+
+        secrets:
+          dbUsername: postgres
+          dbPassword: ""  # Use sealed-secrets or external-secrets
+          secretKey: ""
+
+        ingress:
+          enabled: true
+          className: alb
+          annotations:
+            kubernetes.io/ingress.class: alb
+            alb.ingress.kubernetes.io/scheme: internet-facing
+            alb.ingress.kubernetes.io/target-type: ip
+            alb.ingress.kubernetes.io/healthcheck-path: /health
+          hosts:
+            - host: devopsdojo.example.com  # UPDATE THIS
+              paths:
+                - path: /
+                  pathType: Prefix
+
+        migration:
+          enabled: true
+
+        podDisruptionBudget:
+          enabled: true
+          minAvailable: 2
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devopsdojo-prod
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true

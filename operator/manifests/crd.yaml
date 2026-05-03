@@ -1,0 +1,198 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: devopsdojos.apps.devopsdojo.io
+spec:
+  group: apps.devopsdojo.io
+  names:
+    kind: DevOpsDojo
+    listKind: DevOpsDojoList
+    plural: devopsdojos
+    singular: devopsdojo
+    shortNames:
+      - dojo
+      - dojos
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - database
+              properties:
+                # Database configuration
+                database:
+                  type: object
+                  properties:
+                    storage:
+                      type: string
+                      default: "10Gi"
+                    storageClass:
+                      type: string
+                      default: ""
+                    resources:
+                      type: object
+                      properties:
+                        requests:
+                          type: object
+                          properties:
+                            memory:
+                              type: string
+                              default: "256Mi"
+                            cpu:
+                              type: string
+                              default: "100m"
+                        limits:
+                          type: object
+                          properties:
+                            memory:
+                              type: string
+                              default: "512Mi"
+                            cpu:
+                              type: string
+                              default: "500m"
+                # Backend configuration
+                backend:
+                  type: object
+                  properties:
+                    replicas:
+                      type: integer
+                      minimum: 1
+                      default: 2
+                    image:
+                      type: string
+                      default: "livingdevopswithakhilesh/devopsdozo:backend-latest-1"
+                    resources:
+                      type: object
+                      properties:
+                        requests:
+                          type: object
+                          properties:
+                            memory:
+                              type: string
+                              default: "256Mi"
+                            cpu:
+                              type: string
+                              default: "100m"
+                        limits:
+                          type: object
+                          properties:
+                            memory:
+                              type: string
+                              default: "512Mi"
+                            cpu:
+                              type: string
+                              default: "500m"
+                # Frontend configuration
+                frontend:
+                  type: object
+                  properties:
+                    replicas:
+                      type: integer
+                      minimum: 1
+                      default: 2
+                    image:
+                      type: string
+                      default: "livingdevopswithakhilesh/devopsdozo:frontend-latest-1"
+                    resources:
+                      type: object
+                      properties:
+                        requests:
+                          type: object
+                          properties:
+                            memory:
+                              type: string
+                              default: "128Mi"
+                            cpu:
+                              type: string
+                              default: "100m"
+                        limits:
+                          type: object
+                          properties:
+                            memory:
+                              type: string
+                              default: "256Mi"
+                            cpu:
+                              type: string
+                              default: "300m"
+                # Ingress configuration
+                ingress:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    className:
+                      type: string
+                      default: "alb"
+                    host:
+                      type: string
+                    annotations:
+                      type: object
+                      additionalProperties:
+                        type: string
+                # Secrets reference
+                secretsRef:
+                  type: string
+                  description: "Name of secret containing DB_PASSWORD and SECRET_KEY"
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum:
+                    - Pending
+                    - CreatingDatabase
+                    - WaitingForDatabase
+                    - RunningMigration
+                    - WaitingForMigration
+                    - DeployingBackend
+                    - DeployingFrontend
+                    - Ready
+                    - Failed
+                databaseReady:
+                  type: boolean
+                  default: false
+                migrationCompleted:
+                  type: boolean
+                  default: false
+                backendReady:
+                  type: boolean
+                  default: false
+                frontendReady:
+                  type: boolean
+                  default: false
+                message:
+                  type: string
+                lastUpdated:
+                  type: string
+                  format: date-time
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Database
+          type: boolean
+          jsonPath: .status.databaseReady
+        - name: Migration
+          type: boolean
+          jsonPath: .status.migrationCompleted
+        - name: Backend
+          type: boolean
+          jsonPath: .status.backendReady
+        - name: Frontend
+          type: boolean
+          jsonPath: .status.frontendReady
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

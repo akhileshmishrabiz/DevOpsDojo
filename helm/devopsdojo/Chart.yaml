@@ -1,0 +1,17 @@
+apiVersion: v2
+name: devopsdojo
+description: A Helm chart for DevOpsDojo - a 3-tier learning application with React frontend, Flask backend, and PostgreSQL database
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - devops
+  - learning
+  - flask
+  - react
+  - postgresql
+maintainers:
+  - name: DevOpsDojo Team
+home: https://github.com/akhileshmishrabiz/DevOpsDojo
+sources:
+  - https://github.com/akhileshmishrabiz/DevOpsDojo

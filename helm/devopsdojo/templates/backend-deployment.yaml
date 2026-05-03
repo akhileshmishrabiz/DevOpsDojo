@@ -1,0 +1,81 @@
+{{- if .Values.backend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "devopsdojo.backend.serviceName" . }}
+  namespace: {{ include "devopsdojo.namespace" . }}
+  labels:
+    {{- include "devopsdojo.backend.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not .Values.backend.autoscaling.enabled }}
+  replicas: {{ .Values.backend.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "devopsdojo.backend.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        {{- include "devopsdojo.backend.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      {{- if .Values.backend.initContainer.enabled }}
+      initContainers:
+        - name: wait-for-db
+          image: {{ .Values.backend.initContainer.image }}
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z {{ include "devopsdojo.database.host" . }} {{ .Values.database.external.port | default "5432" }}; do
+                echo "Waiting for database..."
+                sleep 2
+              done
+              echo "Database is ready!"
+      {{- end }}
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.service.port }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "devopsdojo.configMapName" . }}
+            - secretRef:
+                name: {{ include "devopsdojo.secretName" . }}
+          env:
+            - name: ALLOWED_ORIGINS
+              {{- if .Values.backend.env.allowedOrigins }}
+              value: {{ .Values.backend.env.allowedOrigins | quote }}
+              {{- else }}
+              value: "http://{{ include "devopsdojo.frontend.serviceName" . }}.{{ include "devopsdojo.namespace" . }}.svc.cluster.local"
+              {{- end }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.backend.healthCheck.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.backend.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.healthCheck.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.backend.healthCheck.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.backend.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.healthCheck.periodSeconds }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+{{- end }}

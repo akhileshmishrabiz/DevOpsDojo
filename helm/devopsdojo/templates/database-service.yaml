@@ -1,0 +1,18 @@
+{{- if and .Values.database.external.enabled .Values.database.external.host }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "devopsdojo.database.serviceName" . }}
+  namespace: {{ include "devopsdojo.namespace" . }}
+  labels:
+    {{- include "devopsdojo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+spec:
+  type: ExternalName
+  externalName: {{ .Values.database.external.host }}
+  ports:
+    - port: {{ .Values.database.external.port | default 5432 | int }}
+      targetPort: {{ .Values.database.external.port | default 5432 | int }}
+      protocol: TCP
+      name: postgres
+{{- end }}

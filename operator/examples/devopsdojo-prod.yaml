@@ -1,0 +1,55 @@
+apiVersion: apps.devopsdojo.io/v1
+kind: DevOpsDojo
+metadata:
+  name: devopsdojo-prod
+  namespace: devopsdojo-prod
+spec:
+  # Database configuration (PostgreSQL StatefulSet)
+  database:
+    storage: "50Gi"
+    storageClass: "gp3"
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+
+  # Backend configuration
+  backend:
+    replicas: 3
+    image: "livingdevopswithakhilesh/devopsdozo:backend-latest-1"
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "200m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+
+  # Frontend configuration
+  frontend:
+    replicas: 3
+    image: "livingdevopswithakhilesh/devopsdozo:frontend-latest-1"
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "200m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Ingress enabled for prod
+  ingress:
+    enabled: true
+    className: "alb"
+    host: "devopsdojo.example.com"
+    annotations:
+      alb.ingress.kubernetes.io/scheme: "internet-facing"
+      alb.ingress.kubernetes.io/target-type: "ip"
+      alb.ingress.kubernetes.io/healthcheck-path: "/health"
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+
+  # Reference to externally managed secrets
+  secretsRef: "devopsdojo-prod-secrets"

@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devopsdojo-operator-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsdojo-operator
+  namespace: devopsdojo-operator-system
+  labels:
+    app: devopsdojo-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devopsdojo-operator
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: devopsdojo-operator
+    spec:
+      serviceAccountName: devopsdojo-operator
+      containers:
+        - name: operator
+          image: devopsdojo-operator:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KOPF_STANDALONE
+              value: "true"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5

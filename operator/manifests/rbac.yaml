@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devopsdojo-operator
+  namespace: devopsdojo-operator-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: devopsdojo-operator
+rules:
+  # DevOpsDojo CRD permissions
+  - apiGroups: ["apps.devopsdojo.io"]
+    resources: ["devopsdojos", "devopsdojos/status"]
+    verbs: ["*"]
+
+  # Core resources
+  - apiGroups: [""]
+    resources:
+      - pods
+      - services
+      - configmaps
+      - secrets
+      - persistentvolumeclaims
+      - events
+    verbs: ["*"]
+
+  # Apps resources
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - statefulsets
+      - replicasets
+    verbs: ["*"]
+
+  # Batch resources (for jobs)
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+    verbs: ["*"]
+
+  # Networking (for ingress)
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+    verbs: ["*"]
+
+  # For kopf
+  - apiGroups: [""]
+    resources:
+      - namespaces
+    verbs: ["get", "list", "watch"]
+
+  # Kopf needs to manage its own status
+  - apiGroups: ["kopf.dev"]
+    resources:
+      - clusterkopfpeerings
+    verbs: ["*"]
+
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources:
+      - customresourcedefinitions
+    verbs: ["get", "list", "watch"]
+
+  # Events for logging
+  - apiGroups: ["events.k8s.io"]
+    resources:
+      - events
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: devopsdojo-operator
+subjects:
+  - kind: ServiceAccount
+    name: devopsdojo-operator
+    namespace: devopsdojo-operator-system
+roleRef:
+  kind: ClusterRole
+  name: devopsdojo-operator
+  apiGroup: rbac.authorization.k8s.io

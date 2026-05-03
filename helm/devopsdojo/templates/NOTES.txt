@@ -1,0 +1,33 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named: {{ .Release.Name }}
+Namespace: {{ include "devopsdojo.namespace" . }}
+
+{{- if .Values.ingress.enabled }}
+The application can be accessed via:
+{{- range .Values.ingress.hosts }}
+  {{- if .host }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+  {{- else }}
+  Check your ingress controller's external IP/hostname
+  {{- end }}
+{{- end }}
+{{- else }}
+To access the application, run:
+  kubectl port-forward svc/{{ include "devopsdojo.frontend.serviceName" . }} 8080:{{ .Values.frontend.service.port }} -n {{ include "devopsdojo.namespace" . }}
+  Then open http://localhost:8080 in your browser.
+{{- end }}
+
+Backend API is available at:
+  Internal: http://{{ include "devopsdojo.backend.serviceName" . }}.{{ include "devopsdojo.namespace" . }}.svc.cluster.local:{{ .Values.backend.service.port }}
+
+{{- if .Values.migration.enabled }}
+Database migrations will run automatically before deployment.
+{{- end }}
+
+To check the status of your deployment:
+  kubectl get pods -n {{ include "devopsdojo.namespace" . }}
+  kubectl get svc -n {{ include "devopsdojo.namespace" . }}
+
+To view logs:
+  kubectl logs -l app.kubernetes.io/name={{ include "devopsdojo.name" . }} -n {{ include "devopsdojo.namespace" . }}

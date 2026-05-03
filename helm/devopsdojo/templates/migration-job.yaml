@@ -1,0 +1,59 @@
+{{- if .Values.migration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "devopsdojo.fullname" . }}-migration-{{ .Release.Revision }}
+  namespace: {{ include "devopsdojo.namespace" . }}
+  labels:
+    {{- include "devopsdojo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ttlSecondsAfterFinished: {{ .Values.migration.ttlSecondsAfterFinished }}
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "devopsdojo.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-db
+          image: {{ .Values.backend.initContainer.image }}
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z {{ include "devopsdojo.database.host" . }} {{ .Values.database.external.port | default "5432" }}; do
+                echo "Waiting for database..."
+                sleep 2
+              done
+              echo "Database is ready!"
+      containers:
+        - name: migrate
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Running database migrations..."
+              flask db upgrade
+              echo "Migrations completed successfully!"
+          envFrom:
+            - configMapRef:
+                name: {{ include "devopsdojo.configMapName" . }}
+            - secretRef:
+                name: {{ include "devopsdojo.secretName" . }}
+          env:
+            - name: FLASK_APP
+              value: "run.py"
+{{- end }}

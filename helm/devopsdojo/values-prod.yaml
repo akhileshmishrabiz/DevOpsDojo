@@ -1,0 +1,75 @@
+# Production environment values
+# Usage: helm install devopsdojo ./helm/devopsdojo -f ./helm/devopsdojo/values-prod.yaml
+
+global:
+  namespace: devopsdojo-prod
+
+frontend:
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+backend:
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+  env:
+    flaskDebug: "0"
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "200m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+database:
+  external:
+    enabled: true
+    host: "your-prod-db.rds.amazonaws.com"  # Update with your prod DB host
+    port: "5432"
+    name: postgres
+
+secrets:
+  dbUsername: postgres
+  dbPassword: ""  # Use --set or external secrets manager
+  secretKey: ""   # Use --set or external secrets manager
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+  hosts:
+    - host: devopsdojo.example.com  # Update with your domain
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - devopsdojo.example.com
+      secretName: devopsdojo-tls
+
+migration:
+  enabled: true
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
